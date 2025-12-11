@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,6 +15,15 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);
 
-  await app.listen(process.env.PORT ?? 3000);
+  // Enable cookie parser middleware
+  app.use(cookieParser());
+
+  // Enable CORS for Next.js frontend
+  app.enableCors({
+    origin: process.env.NEXT_PUBLIC_FRONTEND_URL ?? "http://localhost:3000", // Next.js frontend URL
+    credentials: true, // Allow cookies to be sent
+  });
+
+  await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();
