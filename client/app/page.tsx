@@ -1,6 +1,5 @@
 "use client";
 import Navbar from "@/components/layout/Navbar";
-
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import { useRouter } from "next/navigation";
