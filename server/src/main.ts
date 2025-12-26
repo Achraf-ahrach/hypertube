@@ -7,10 +7,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-    .setTitle('Cats example')
-    .setDescription('The cats API description')
+    .setTitle('Hyperflix')
+    .setDescription('The Hyperflix API description')
     .setVersion('1.0')
-    .addTag('cats')
+    .addTag('Hyperflix')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, documentFactory);
@@ -20,10 +20,10 @@ async function bootstrap() {
 
   // Enable CORS for Next.js frontend
   app.enableCors({
-    origin: process.env.NEXT_PUBLIC_FRONTEND_URL ?? "http://localhost:3000", // Next.js frontend URL
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true, // Allow cookies to be sent
   });
 
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.BACKEND_PORT || 3001);
 }
 bootstrap();
