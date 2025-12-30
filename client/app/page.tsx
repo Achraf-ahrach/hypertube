@@ -1,11 +1,13 @@
 "use client";
 
-import Navbar from "@/components/Navbar";
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import { useRouter } from "next/navigation";
 import { FilterBar } from "@/components/filter-bar";
 import { MovieCard } from "@/components/movie-card";
+import Navbar from "@/components/layout/Navbar";
+import { useAuth } from "@/lib/hooks/useAuth";
+import LandingPage from "@/components/landing/LandingPage";
 
 // Mock Data
 const MOCK_MOVIES = [
@@ -102,22 +104,23 @@ const MOCK_MOVIES = [
 ];
 
 export default function Home() {
-  const [user, setUser] = useState<any>(null);
+  const { data: user, isLoading } = useAuth();
+  // const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const [movies, setMovies] = useState(MOCK_MOVIES);
 
   // Filter States
   const [hideWatched, setHideWatched] = useState(false);
 
-  useEffect(() => {
-    // 1. Fetch Profile
-    api.get("/auth/profile")
-      .then(({ data }) => setUser(data))
-      .catch(() => {
-        // If the backend says 401 (Unauthorized), redirect to login
-        router.push("/login");
-      });
-  }, [router]);
+  // useEffect(() => {
+  //   // 1. Fetch Profile
+  //   api.get("/auth/profile")
+  //     .then(({ data }) => setUser(data))
+  //     .catch(() => {
+  //       // If the backend says 401 (Unauthorized), redirect to login
+  //       router.push("/login");
+  //     });
+  // }, [router]);
 
   /* 
      Ideally, we would perform filtering/sorting here or on the backend.
@@ -133,26 +136,41 @@ export default function Home() {
 
   // if (!user) return <p className="p-10">Loading...</p>;
 
-  return (
-    <div className="antialiased bg-background min-h-screen text-foreground">
-      <Navbar />
-      <main className="container mx-auto py-8 px-4 md:px-6 lg:px-8">
+  function DashboardPage() {
+    return (
+      <div className="antialiased bg-background min-h-screen text-foreground">
+        <Navbar />
+        <main className="container mx-auto py-8 px-4 md:px-6 lg:px-8">
 
-        <FilterBar
-          onSortChange={handleSortChange}
-          onGenreChange={handleGenreChange}
-          onRatingChange={handleRatingChange}
-          onYearChange={handleYearChange}
-          onHideWatchedChange={handleHideWatched}
-        />
+          <FilterBar
+            onSortChange={handleSortChange}
+            onGenreChange={handleGenreChange}
+            onRatingChange={handleRatingChange}
+            onYearChange={handleYearChange}
+            onHideWatchedChange={handleHideWatched}
+          />
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {filteredMovies.map(movie => (
-            <MovieCard key={movie.id} movie={movie} />
-          ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {filteredMovies.map(movie => (
+              <MovieCard key={movie.id} movie={movie} />
+            ))}
+          </div>
+
+        </main>
+      </div>
+    );
+  }
+
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
-
-      </main>
-    </div>
-  );
+      </div>
+    );
+  }
+  return user ? <DashboardPage /> : <LandingPage />;
 }

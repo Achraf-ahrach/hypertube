@@ -3,15 +3,23 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
 import { useRouter } from "next/navigation";
-import { Zap, Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import Image from "next/image";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import bgImage from "@/public/hero-bg.jpg";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +30,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await api.post("/auth/login", { username, password });
+      await api.post("/auth/login", { email, password });
       router.push("/");
     } catch (err) {
       setError("Incorrect password. Please try again.");
@@ -31,24 +39,37 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.href = `${
+      process.env.BACKEND_URL || "http://localhost:3001"
+    }/auth/google`;
+  };
+
+  const handleFortyTwoLogin = () => {
+    window.location.href = `${
+      process.env.BACKEND_URL || "http://localhost:3001"
+    }/auth/42`;
+  };
+
   useEffect(() => {
     setError("");
-  }, [username, password]);
+  }, [email, password]);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      <Card className="w-full min-w-[320px] max-w-md shadow-lg shadow-black/10 border-border/50 p-0 ">
+    // 2. Update the main div style to use the background image
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `url(${bgImage.src})`,
+      }}
+    >
+      <Card className="w-full min-w-[320px] max-w-md shadow-lg shadow-black/10 border-border/50 p-0 relative z-10 bg-card/90 ">
         <CardHeader className="text-center pt-8 pb-6 bg-background/50 rounded-br-[25px] rounded-bl-[25px] ">
-          <div className="flex justify-center mb-3  ">
-            <div className="w-14 h-14 bg-linear-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 animate-bounce" style={{ animationDuration: "2s" }}>
-              <Zap className="w-7 h-7 text-white" fill="white" />
-            </div>
-          </div>
           <CardTitle className="text-3xl font-bold bg-linear-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Welcome Back
           </CardTitle>
           <CardDescription className="text-sm mt-2">
-            Sign in to continue to Hypertube
+            Sign in to continue to Hyperflix
           </CardDescription>
         </CardHeader>
 
@@ -64,8 +85,8 @@ export default function LoginPage() {
                   id="email"
                   type="text"
                   placeholder="mail@example.com"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
                   className="h-13 bg-card border-border/60 group-hover:border-border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary"
@@ -77,7 +98,9 @@ export default function LoginPage() {
             <div className="space-y-2.5">
               <Label
                 htmlFor="password"
-                className={`transition-colors ${error ? "text-destructive" : "text-primary"}`}
+                className={`transition-colors ${
+                  error ? "text-destructive" : "text-primary"
+                }`}
               >
                 Password
               </Label>
@@ -90,8 +113,11 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className={`h-13 bg-card border-border/60 group-hover:border-border pr-10 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/50 ${error ? "border-destructive/70 focus-visible:ring-destructive/30" : "focus-visible:border-primary"
-                    }`}
+                  className={`h-13 bg-card border-border/60 group-hover:border-border pr-10 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                    error
+                      ? "border-destructive/70 focus-visible:ring-destructive/30"
+                      : "focus-visible:border-primary"
+                  }`}
                 />
                 <button
                   type="button"
@@ -100,7 +126,11 @@ export default function LoginPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-200 disabled:opacity-50"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
 
@@ -115,7 +145,10 @@ export default function LoginPage() {
 
             {/* Forgot Password */}
             <div className="flex justify-end pt-2">
-              <a href="#" className="text-primary mb-2 text-sm font-medium hover:opacity-70 transition-opacity">
+              <a
+                href="#"
+                className="text-primary mb-2 text-sm font-medium hover:opacity-70 transition-opacity"
+              >
                 Forgot password?
               </a>
             </div>
@@ -146,13 +179,19 @@ export default function LoginPage() {
               <span className="w-full border-t border-border/50"></span>
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-card px-6 text-xs uppercase text-muted-foreground font-bold tracking-wide">OR</span>
+              <span className="bg-card px-6 text-xs uppercase text-muted-foreground font-bold tracking-wide">
+                OR
+              </span>
             </div>
           </div>
 
           {/* OAuth Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <button className="border-border/60 hover:border-primary flex items-center justify-center gap-2 h-11 bg-surface hover:bg-[#2D3B55] text-text-head rounded-xl font-medium text-sm border border-border-dark transition-colors">
+            <button
+              onClick={handleFortyTwoLogin}
+              disabled={isLoading}
+              className="border-border/60 hover:border-primary flex items-center justify-center gap-2 h-11 bg-surface hover:bg-[#2D3B55] text-text-head rounded-xl font-medium text-sm border border-border-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/42_Logo.svg/1024px-42_Logo.svg.png"
                 alt="42 Logo"
@@ -162,20 +201,34 @@ export default function LoginPage() {
               />
               <span>Intra</span>
             </button>
-            {/* <Button
-              variant="outline"
-              className="h-11 font-semibold rounded-lg border-border/60 hover:border-border hover:bg-secondary/50 transition-all duration-200"
-              disabled={isLoading}
-            >
-              Google
-            </Button> */}
 
-            <button className=" border-border/60 hover:border-primary flex items-center justify-center gap-2 h-11 bg-surface hover:bg-[#2D3B55] text-text-head rounded-xl font-medium text-sm border border-border-dark transition-colors">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M23.766 12.2764C23.766 11.4607 23.6999 10.6406 23.5588 9.83807H12.24V14.4591H18.7217C18.4528 15.9494 17.5885 17.2678 16.323 18.1056V21.1039H20.19C22.4608 19.0139 23.766 15.9274 23.766 12.2764Z" fill="#4285F4"></path>
-                <path d="M12.24 24.0008C15.4765 24.0008 18.2059 22.9382 20.19 21.1039L16.323 18.1056C15.2517 18.8375 13.8627 19.252 12.2445 19.252C9.11388 19.252 6.45946 17.1399 5.50705 14.3003H1.5166V17.3912C3.55371 21.4434 7.7029 24.0008 12.24 24.0008Z" fill="#34A853"></path>
-                <path d="M5.50253 14.3003C5.00236 12.8199 5.00236 11.1799 5.50253 9.69951V6.60861H1.5166C-0.18551 10.0056 -0.18551 13.9945 1.5166 17.3915L5.50253 14.3003Z" fill="#FBBC05"></path>
-                <path d="M12.24 4.74966C13.9509 4.7232 15.6044 5.36697 16.8434 6.54867L20.2695 3.12262C18.1001 1.0855 15.2208 -0.034466 12.24 0.000808666C7.7029 0.000808666 3.55371 2.55822 1.5166 6.60861L5.50253 9.69951C6.45064 6.86154 9.10947 4.74966 12.24 4.74966Z" fill="#EA4335"></path>
+            <button
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className=" border-border/60 hover:border-primary flex items-center justify-center gap-2 h-11 bg-surface hover:bg-[#2D3B55] text-text-head rounded-xl font-medium text-sm border border-border-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M23.766 12.2764C23.766 11.4607 23.6999 10.6406 23.5588 9.83807H12.24V14.4591H18.7217C18.4528 15.9494 17.5885 17.2678 16.323 18.1056V21.1039H20.19C22.4608 19.0139 23.766 15.9274 23.766 12.2764Z"
+                  fill="#4285F4"
+                ></path>
+                <path
+                  d="M12.24 24.0008C15.4765 24.0008 18.2059 22.9382 20.19 21.1039L16.323 18.1056C15.2517 18.8375 13.8627 19.252 12.2445 19.252C9.11388 19.252 6.45946 17.1399 5.50705 14.3003H1.5166V17.3912C3.55371 21.4434 7.7029 24.0008 12.24 24.0008Z"
+                  fill="#34A853"
+                ></path>
+                <path
+                  d="M5.50253 14.3003C5.00236 12.8199 5.00236 11.1799 5.50253 9.69951V6.60861H1.5166C-0.18551 10.0056 -0.18551 13.9945 1.5166 17.3915L5.50253 14.3003Z"
+                  fill="#FBBC05"
+                ></path>
+                <path
+                  d="M12.24 4.74966C13.9509 4.7232 15.6044 5.36697 16.8434 6.54867L20.2695 3.12262C18.1001 1.0855 15.2208 -0.034466 12.24 0.000808666C7.7029 0.000808666 3.55371 2.55822 1.5166 6.60861L5.50253 9.69951C6.45064 6.86154 9.10947 4.74966 12.24 4.74966Z"
+                  fill="#EA4335"
+                ></path>
               </svg>
               <span>Google</span>
             </button>
@@ -185,7 +238,10 @@ export default function LoginPage() {
         <CardFooter className="flex justify-center py-4  ">
           <p className="text-muted-foreground text-sm ">
             Don't have an account?{" "}
-            <a href="/signup" className="text-primary font-bold hover:opacity-70 transition-opacity">
+            <a
+              href="/signup"
+              className="text-primary font-bold hover:opacity-70 transition-opacity"
+            >
               Sign Up
             </a>
           </p>
