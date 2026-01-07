@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import api from "@/lib/axios";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, AlertCircle, ArrowRight, User, Mail } from "lucide-react";
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import bgImage from "@/public/hero-bg.jpg";
 
-export default function SignUpPage() {
+function SignUpForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -30,9 +30,9 @@ export default function SignUpPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const emailParam = new URLSearchParams(window.location.search).get("email");
+    const emailParam = searchParams.get("email");
     if (emailParam) {
-      setEmail(emailParam);
+      setEmail(decodeURIComponent(emailParam));
     }
   }, [searchParams]);
 
@@ -325,5 +325,20 @@ export default function SignUpPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }
