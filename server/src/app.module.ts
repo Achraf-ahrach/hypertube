@@ -6,6 +6,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UserSettingsModule } from './userSetting/UserSettingsModule';
+import { UsersProfileController } from './userprofile/controller/profile.controller';
+import { UserProfileModule } from './userprofile/UserProfileModule';
 
 @Module({
   imports: [
@@ -16,8 +18,9 @@ import { UserSettingsModule } from './userSetting/UserSettingsModule';
     DatabaseModule,
     AuthModule,
     UserSettingsModule,
+    UserProfileModule
   ],
-  controllers: [AppController, ],
+  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}

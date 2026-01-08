@@ -11,7 +11,9 @@ import { randomBytes } from 'crypto';
 
 @Controller('settings')
 export class UsersSettingsController {
-    constructor(private usersService: SettingsService) { }
+    constructor(
+        private usersService: SettingsService
+    ) { }
 
     @Patch('account')
     async updateSettings(
