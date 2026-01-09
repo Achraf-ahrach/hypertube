@@ -14,7 +14,7 @@ export class UsersSettingsController {
     constructor(
         private usersService: SettingsService
     ) { }
-
+    
     @Patch('account')
     async updateSettings(
         @Body() dto: AccountSettingsDto,
