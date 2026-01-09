@@ -8,7 +8,7 @@ import {
   IsString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ReplyDto } from './reply.dto';
+import { ReplyDto } from './CreateReply.dto';
 import { CommentMediaDto } from './comment-media.dto';
 
 export class CommentDto {
