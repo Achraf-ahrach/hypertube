@@ -8,10 +8,13 @@ import {
   Body,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
+import { LoginDto } from './dto/login.dto';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -40,6 +43,26 @@ export class AuthController {
   }
 
   // ============== Local Authentication ==============
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Successful login',
+    schema: {
+      properties: {
+        message: { type: 'string', example: 'Success' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            email: { type: 'string', example: 'user@example.com' },
+            username: { type: 'string', example: 'username' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @UseGuards(AuthGuard('local'))
   @Post('login')
   async login(@Request() req, @Res({ passthrough: true }) response: Response) {
