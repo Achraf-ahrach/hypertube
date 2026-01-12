@@ -13,16 +13,41 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto } from './dto/login.dto';
-
+import { RegisterDto } from './dto/register.dto';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   // ============== Registration ==============
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({
+    status: 201,
+    description: 'User successfully registered',
+    schema: {
+      properties: {
+        message: { type: 'string', example: 'Registration successful' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            email: { type: 'string', example: 'user@example.com' },
+            username: { type: 'string', example: 'johndoe' },
+            avatarUrl: { type: 'string', nullable: true, example: null },
+            provider: { type: 'string', example: 'local' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'User already exists or invalid data',
+  })
   @Post('register')
   async register(
-    @Body() registerDto: { email: string; username: string; password: string },
+    @Body() registerDto: RegisterDto,
     @Res({ passthrough: true }) response: Response,
   ) {
     try {
