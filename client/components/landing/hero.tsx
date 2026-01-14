@@ -24,7 +24,7 @@ export function Hero() {
   };
 
   return (
-    <div className="relative min-h-[700px] lg:h-[95vh] w-full overflow-hidden font-sans">
+    <div className="relative min-h-[700px] lg:h-[95vh] h-[50vh] w-full overflow-hidden font-sans">
       <div className="absolute inset-0">
         <Image
           src="/hero-bg.jpg"
@@ -53,13 +53,6 @@ export function Hero() {
               <option className="bg-black text-white">Français</option>
             </select>
           </div>
-          {/* <div className="hidden md:flex items-center gap-2 px-3 py-1 border border-white/30 rounded bg-black/20 backdrop-blur-sm text-white">
-            <Languages className="w-4 h-4 text-white" />
-            <select className="bg-transparent text-sm font-medium outline-none cursor-pointer text-white appearance-none pr-4">
-              <option className="bg-black text-white">English</option>
-              <option className="bg-black text-white">Français</option>
-            </select>
-          </div> */}
           <Link href="/login">
             <Button className="bg-[#e50914] hover:bg-[#c11119] text-white font-medium px-4 py-1.5 h-auto text-sm rounded-md transition-colors">
               Sign In
