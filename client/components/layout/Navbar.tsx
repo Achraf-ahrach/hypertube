@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Search, Bell, LogOut, User, Settings } from "lucide-react";
+import { Search, LogOut, User, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,30 +16,35 @@ import {
 import { useRouter } from "next/navigation";
 import api from "@/lib/axios";
 import ModeToggle from "../shared/mode-toggle";
-import { useEffect, useState } from "react";
+import { useUser } from "@/lib/contexts/UserContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Navbar() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const { user, refetch } = useUser();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    api
-      .get("/auth/profile")
-      .then(({ data }) => setUser(data))
-      .catch(() => {
-        // User not authenticated
-        setUser(null);
-      });
-  }, []);
-
-  console.log("userData: ", user);
+  const logoutMutaion = useMutation({
+    mutationFn: async () => {
+      await api.post("/auth/logout");
+    },
+    onSuccess: () => {
+      // queryClient.clear();
+      // queryClient.invalidateQueries({ queryKey: ["auth"] });
+      queryClient.setQueriesData({ queryKey: ["auth", "profile"] }, null);
+      queryClient.removeQueries({ queryKey: ["auth"] });
+      // refetch();
+      router.push("/login");
+    },
+  });
 
   const handleLogout = async () => {
-    await api.post("/auth/logout");
-    router.push("/login");
+    logoutMutaion.mutate();
+    // await api.post("/auth/logout");
+    // refetch();
+    // router.push("/login");
   };
 
-  // Get user initials for avatar fallback
   const getUserInitials = () => {
     if (!user) return "U";
     if (user.username) return user.username.substring(0, 2).toUpperCase();
@@ -88,7 +93,7 @@ export default function Navbar() {
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9 border border-border">
                   <AvatarImage
-                    src={user?.avatarUrl}
+                    src={user?.avatarUrl || undefined}
                     alt={user?.username || "User"}
                   />
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>
