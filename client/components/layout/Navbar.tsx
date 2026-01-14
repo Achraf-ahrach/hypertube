@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Search, LogOut, User, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,6 @@ export default function Navbar() {
       await api.post("/auth/logout");
     },
     onSuccess: () => {
-      // queryClient.clear();
-      // queryClient.invalidateQueries({ queryKey: ["auth"] });
       queryClient.setQueriesData({ queryKey: ["auth", "profile"] }, null);
       queryClient.removeQueries({ queryKey: ["auth"] });
       // refetch();
@@ -40,9 +39,6 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     logoutMutaion.mutate();
-    // await api.post("/auth/logout");
-    // refetch();
-    // router.push("/login");
   };
 
   const getUserInitials = () => {
@@ -55,16 +51,14 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="flex h-16 items-center px-6">
-        {/* Logo */}
-        <Link
-          href="/library"
-          className="mr-8 flex items-center gap-2 font-bold text-xl text-primary hover:text-primary/80 transition"
-        >
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            H
-          </div>
-          <span className="hidden md:inline-block">Hyperflix</span>
-        </Link>
+        <Image
+          src="/logo_.png"
+          alt="Hyperflix Logo"
+          width={140}
+          height={40}
+          priority
+          className="w-32 md:w-44 lg:w-48 object-contain"
+        />
 
         {/* Search Bar - Wide center area */}
         <div className="flex-1 max-w-xl mx-4">
