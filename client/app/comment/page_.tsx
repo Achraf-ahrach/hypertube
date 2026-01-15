@@ -134,19 +134,19 @@ export const api = {
     });
     return await response.json();
 
-    return {
-      id: `c-${Date.now()}`,
-      userId: currentUser.id,
-      username: currentUser.username,
-      userAvatar: currentUser.avatar,
-      content,
-      likes: 0,
-      isLiked: false,
-      replies: [],
-      replyCount: 0,
-      media: media ? [{ id: `m-${Date.now()}`, type: 'image', url: URL.createObjectURL(media) }] : [],
-      createdAt: new Date().toISOString()
-    };
+    // return {
+    //   id: `c-${Date.now()}`,
+    //   userId: currentUser.id,
+    //   username: currentUser.username,
+    //   userAvatar: currentUser.avatar,
+    //   content,
+    //   likes: 0,
+    //   isLiked: false,
+    //   replies: [],
+    //   replyCount: 0,
+    //   media: media ? [{ id: `m-${Date.now()}`, type: 'image', url: URL.createObjectURL(media) }] : [],
+    //   createdAt: new Date().toISOString()
+    // };
   },
 
   async createReply(commentId: string, content: string): Promise<Reply> {
@@ -592,3 +592,15 @@ const CommentsSection = ({ movieId }: { movieId: string }) => {
 };
 
 export default CommentsSection;
+
+
+
+
+
+
+
+
+
+
+
+

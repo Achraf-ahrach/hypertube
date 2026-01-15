@@ -10,8 +10,6 @@ import { CommentsSection } from './components/CommentsSection';
 
 
 
-
-
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('watched');
   const [userHeader, setUserHeader] = useState<User>();
@@ -84,7 +82,8 @@ const ProfilePage: React.FC = () => {
     return response.json();
   }
 
-  const handleFetchUserData = async () => {
+  const handleFetchUserData = async () => 
+  {
     try
     {
       const res = await fetchUserData();
