@@ -10,7 +10,7 @@ import { eq, desc, sql } from 'drizzle-orm';
 import { comments, movies } from '../../database/schema';
 import { CommentResponseDto } from '../dto/CommentResponse.dto';
 import { MovieResponseDto } from '../dto/MovieResponse.dto';
-import { watchedMovies } from 'src/database/schema/moviesWatched';
+import { watchedMovies } from 'src/database/schema/movies-watched';
 
 
 

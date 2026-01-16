@@ -1,7 +1,4 @@
 
-
-
-
 // Pagination Component
 export const Pagination: React.FC<{
   currentPage: number;

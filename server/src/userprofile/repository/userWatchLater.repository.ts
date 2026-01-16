@@ -7,7 +7,7 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { eq, desc, sql } from 'drizzle-orm';
 import {movies } from '../../database/schema';
 import { MovieResponseDto } from '../dto/MovieResponse.dto';
-import { watchLaterMovies } from 'src/database/schema/moviesWatchLater';
+import { watchLaterMovies } from 'src/database/schema/movies-watch-later';
 
 
 

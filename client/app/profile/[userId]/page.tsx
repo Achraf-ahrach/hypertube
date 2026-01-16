@@ -1,13 +1,15 @@
 "use client"
 import React, { useEffect, useState } from 'react';
-import { PaginatedResponse, TabType, User } from './types/types';
+import { Movie, PaginatedResponse, TabType, User } from './types/types';
 import { ProfileHeader } from './components/ProfileHeader';
 import { mockComments, mockUser, mockWatchedMovies, mockWatchLaterMovies } from './mockdata/data';
 import { Tabs } from './components/Tabs';
 import { MovieGrid } from './components/MovieGrid';
 import { CommentsSection } from './components/CommentsSection';
+import api from '@/lib/axios';
 
 
+import { useParams } from "next/navigation";
 
 
 const ProfilePage: React.FC = () => {
@@ -15,24 +17,24 @@ const ProfilePage: React.FC = () => {
   const [userHeader, setUserHeader] = useState<User>();
   const [watchLaterMovies, setWatchLaterMovies] = useState<User[]>([]);
   const [comments, setComments] = useState<User[]>([]);
-  const [watchedMovies, setWatchedMovies] = useState<User[]>([]);
+  const [watchedMovies, setWatchedMovies] = useState<Movie[]>([]);
   const [currentWatchedPage, setCurrentWatchedPage] = useState(1);
   const [currentWatchLaterPage, setCurrentWatchLaterPage] = useState(1);
   const [currentCommentPage, setCurrentCommentPage] = useState(1);
   const [totalWatched, setTotalWatched] = useState(3000);
   const [totalWatchLater, setTotalWachLater] = useState(1);
   const [totalComments, setTotalComments] = useState(1);
+  const params = useParams();
+  const userId = params.userId;
+  const LIMIT = 20;
 
-
-  const LIMIT = 10;
-
-  useEffect(
-    () => {
-      handleFetchUserData();
-      handleCurrentWatchedPageChange(1);
-    }
-    ,
-    []);
+  // useEffect(
+  //   () => {
+  //     handleFetchUserData();
+  //     handleCurrentWatchedPageChange(1);
+  //   }
+  //   ,
+  //   []);
 
   useEffect(() => {
     if (activeTab === 'watched') {
@@ -47,45 +49,17 @@ const ProfilePage: React.FC = () => {
   }, [activeTab]);
 
   async function fetchUserData() {
-    const endpoint = "http://localhost:3001/profile/me"
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        // Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || 'Failed to fetch comments');
-    }
-    return response.json();
-
+    const response = await api.get(`/profile/${userId}`);
+    return response.data;
   }
 
-  async function fetchUserPages(
-    endpoint: string,
-  ) {
-    const response = await fetch(endpoint, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        // Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || 'Failed to fetch comments');
-    }
-    return response.json();
+  async function fetchUserPages(endpoint: string) {
+    const response = await api.get(endpoint);
+    return response.data;
   }
 
-  const handleFetchUserData = async () => 
-  {
-    try
-    {
+  const handleFetchUserData = async () => {
+    try {
       const res = await fetchUserData();
       setUserHeader({
         id: res.id,
@@ -103,42 +77,37 @@ const ProfilePage: React.FC = () => {
       } else {
         // setError('Unexpected error occurred');
       }
-    } 
-
+    }
   }
 
   const handleCurrentWatchedPageChange = async (pageNum: number) => {
-
-    let endpoint = `http://localhost:3001/profile/movies`;
-
     try {
+
+      const endpoint = `/profile/${userId}/movies/?page=${pageNum}&limit=${LIMIT}`;
       const res = await fetchUserPages(endpoint);
+      
+      console.log("yoyo");
       console.log(res.data);
       setWatchedMovies(res.data);
       setTotalWatched(res.meta.total);
       setCurrentWatchedPage(pageNum);
     }
     catch (err) {
-      console.error(err);
-
       if (err instanceof Error) {
         // setError(err.message);
       } else {
         // setError('Unexpected error occurred');
       }
     }
-
   }
 
   const handleCurrentWatchLaterPage = async (pageNum: number) => {
-    let endpoint = `http://localhost:3001/profile/watchlater`;
-
     try {
-      const res = await fetchUserPages(endpoint);
+      const res = await fetchUserPages('/profile/watchlater');
       console.log(res.data);
-      setComments(res.data);
-      setTotalComments(res.meta.total);
-      setCurrentCommentPage(pageNum);
+      setWatchLaterMovies(res.data);
+      setTotalWachLater(res.meta.total);
+      setCurrentWatchLaterPage(pageNum);
     }
     catch (err) {
       console.error(err);
@@ -152,11 +121,8 @@ const ProfilePage: React.FC = () => {
   }
 
   const handleCurrentCommentPage = async (pageNum: number) => {
-
-    let endpoint = `http://localhost:3001/profile/comments`;
-
     try {
-      const res = await fetchUserPages(endpoint);
+      const res = await fetchUserPages('/profile/comments');
       console.log(res.data);
       setComments(res.data);
       setTotalComments(res.meta.total);
@@ -195,7 +161,7 @@ const ProfilePage: React.FC = () => {
               <div className="p-6">
                 {activeTab === 'watched' && (
                   <MovieGrid
-                    movies={mockWatchedMovies}
+                    movies={watchedMovies}
                     isWatchLater={false}
                     itemsPerPage={20}
                     currentPage={currentWatchedPage}
@@ -204,19 +170,17 @@ const ProfilePage: React.FC = () => {
                   />
                 )}
 
-                {/* {
-                  activeTab === 'watchLater' && (
-                    <MovieGrid
-                      movies={mockWatchedMovies}
-                      isWatchLater={true}
-                      itemsPerPage={20}
-                      currentPage={currentWatchedPage}
-                      onPageChange={handleCurrentWatchedPageChange}
-                      total={totalWatchLater}
-                    />
-                  )}
+                {activeTab === 'watchLater' && (
+                  <MovieGrid
+                    movies={mockWatchLaterMovies}
+                    isWatchLater={true}
+                    itemsPerPage={20}
+                    currentPage={currentWatchLaterPage}
+                    onPageChange={handleCurrentWatchLaterPage}
+                    total={totalWatchLater}
+                  />
+                )}
 
-                  */}
                 {activeTab === 'comments' && (
                   <CommentsSection comments={mockComments}
                     currentPage={currentCommentPage}

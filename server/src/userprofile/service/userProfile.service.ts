@@ -50,50 +50,29 @@ export class userProfileService {
         limit: number
     )
     {
-        const total = 342;
-
-        const generateMockMovies = (count: number, startId: number = 1): Movie[] => {
-            const titles = [
-                'The Shawshank Redemption', 'The Dark Knight', 'Inception', 'Pulp Fiction',
-                'Interstellar', 'The Matrix', 'Forrest Gump', 'The Godfather',
-                'Fight Club', 'Goodfellas', 'The Prestige', 'Parasite',
-                'Dune', 'The Batman', 'Everything Everywhere All at Once',
-                'No Country for Old Men', 'Blade Runner 2049', 'Arrival',
-                'Whiplash', 'La La Land', 'Joker', 'Oppenheimer',
-                'The Grand Budapest Hotel', 'Mad Max: Fury Road', 'Moonlight'
-            ];
-
-            const posters = [
-                'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=300&h=450&fit=crop',
-                'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=300&h=450&fit=crop',
-                'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=450&fit=crop',
-                'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=300&h=450&fit=crop',
-                'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=300&h=450&fit=crop',
-                'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=300&h=450&fit=crop',
-            ];
-
-            return Array.from({ length: count }, (_, i) => ({
-                id: String(startId + i),
-                title: titles[i % titles.length],
-                year: 1990 + (i % 34),
-                rating: Number((7 + Math.random() * 2.3).toFixed(1)),
-                posterUrl: posters[i % posters.length],
-            }));
-        };
-
-        const offset = (page - 1) * limit;
-        const data = generateMockMovies(limit, offset + 1);
-
-        return {
-            data,
-            meta: {
-                total,
-                page,
-                limit,
-                lastPage: Math.ceil(total / limit),
-            },
-        };
+        return this.userWatchedMoviesRepository.getUserWatchedMoviesByPage(
+            userId,
+            page,
+            limit
+        );
     }
+
+
+    async getUserWatchLaterMovies(
+        userId: number,
+        page: number,
+        limit: number
+    ) {
+
+        const data = await this.userWatchLaterRepository.getUserWatchLaterMoviesByPage(
+            userId,
+            page,
+            limit
+        );
+
+        return data;
+    }
+
 
 
 
@@ -161,20 +140,6 @@ export class userProfileService {
 
 
 
-    async getUserWatchLaterMovies(
-        userId: number,
-        page: number,
-        limit: number
-    ) {
-
-        const data = await this.userWatchLaterRepository.getUserWatchLaterMoviesByPage(
-            userId,
-            page,
-            limit
-        );
-
-        return data;
-    }
 
 
     async getProfilePublicInfo(

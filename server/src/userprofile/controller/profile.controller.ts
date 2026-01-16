@@ -1,6 +1,6 @@
 
 // src/users/users.controller.ts
-import { Controller, Patch, Body, Req, Query, UseGuards, Get } from '@nestjs/common';
+import { Controller, Patch, Body, Req, Query, UseGuards, Get, Param } from '@nestjs/common';
 import type { Request } from 'express';
 import { userProfileService } from '../service/userProfile.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -13,8 +13,9 @@ export class UsersProfileController {
     ) { }
 
     // @UseGuards(AuthGuard('jwt'))
-    @Get('movies')
-    async getProfileComments(
+    @Get(':userId/movies')
+    async getProfileWatchedMovies(
+        @Param('userId') userId: number,
         @Query('page') page = 1,
         @Query('limit') limit = 10,
         @Req() request: Request,
@@ -22,7 +23,24 @@ export class UsersProfileController {
     {
         return this.userProfileService.getUserWatchedMovies
         (
-            1,
+            userId,
+            page,
+            limit
+        )
+    }
+
+
+    @Get(':userId/movies')
+    async getProfileWatchLaterMovies(
+        @Param('userId') userId: number,
+        @Query('page') page = 1,
+        @Query('limit') limit = 10,
+        @Req() request: Request,
+    )
+    {
+        return this.userProfileService.getUserWatchLaterMovies
+        (
+            userId,
             page,
             limit
         )
