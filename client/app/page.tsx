@@ -9,7 +9,7 @@ function DashboardPage() {
 
   return (
     <div className="antialiased bg-background min-h-screen text-foreground">
-      <Navbar />
+      
       <main className="container mx-auto py-6 px-4">
         <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
         <p>Welcome back, {user?.username}!</p>

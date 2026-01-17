@@ -8,15 +8,15 @@ import { MovieGrid } from './components/MovieGrid';
 import { CommentsSection } from './components/CommentsSection';
 import api from '@/lib/axios';
 
-
+import { Comment } from './types/types';
 import { useParams } from "next/navigation";
 
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('watched');
   const [userHeader, setUserHeader] = useState<User>();
-  const [watchLaterMovies, setWatchLaterMovies] = useState<User[]>([]);
-  const [comments, setComments] = useState<User[]>([]);
+  const [watchLaterMovies, setWatchLaterMovies] = useState<Movie[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [watchedMovies, setWatchedMovies] = useState<Movie[]>([]);
   const [currentWatchedPage, setCurrentWatchedPage] = useState(1);
   const [currentWatchLaterPage, setCurrentWatchLaterPage] = useState(1);
@@ -38,12 +38,14 @@ const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'watched') {
+      setComments([]);
       handleCurrentWatchedPageChange(1);
     }
     if (activeTab === 'comments') {
       handleCurrentCommentPage(1);
     }
     if (activeTab === 'watchLater') {
+      setComments([]);
       handleCurrentWatchLaterPage(1);
     }
   }, [activeTab]);
@@ -103,7 +105,7 @@ const ProfilePage: React.FC = () => {
 
   const handleCurrentWatchLaterPage = async (pageNum: number) => {
     try {
-      const res = await fetchUserPages('/profile/watchlater');
+      const res = await fetchUserPages(`/profile/${userId}/movies?page=${pageNum}&limit=${LIMIT}`);
       console.log(res.data);
       setWatchLaterMovies(res.data);
       setTotalWachLater(res.meta.total);
@@ -121,10 +123,12 @@ const ProfilePage: React.FC = () => {
   }
 
   const handleCurrentCommentPage = async (pageNum: number) => {
-    try {
-      const res = await fetchUserPages('/profile/comments');
-      console.log(res.data);
-      setComments(res.data);
+    try
+    {
+      const res = await fetchUserPages(`/profile/${userId}/comments?page=${pageNum}&limit=${LIMIT}`);
+      console.log(res);
+      // setComments(res.data);
+      setComments(prev => [...prev, ...res.data]);
       setTotalComments(res.meta.total);
       setCurrentCommentPage(pageNum);
     }
@@ -140,7 +144,7 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-white">
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <aside className="lg:col-span-3">
@@ -150,7 +154,7 @@ const ProfilePage: React.FC = () => {
           </aside>
 
           <div className="lg:col-span-9">
-            <div className="bg-zinc-950 border border-zinc-900 overflow-hidden">
+            <div className=" border border-zinc-900 overflow-hidden">
               {/* Tabs Navigation */}
               <Tabs
                 activeTab={activeTab}
@@ -172,7 +176,7 @@ const ProfilePage: React.FC = () => {
 
                 {activeTab === 'watchLater' && (
                   <MovieGrid
-                    movies={mockWatchLaterMovies}
+                    movies={watchLaterMovies}
                     isWatchLater={true}
                     itemsPerPage={20}
                     currentPage={currentWatchLaterPage}
@@ -182,9 +186,10 @@ const ProfilePage: React.FC = () => {
                 )}
 
                 {activeTab === 'comments' && (
-                  <CommentsSection comments={mockComments}
+                  <CommentsSection comments={comments}
                     currentPage={currentCommentPage}
                     onPageChange={handleCurrentCommentPage}
+                    total={totalComments}
                   />
                 )}
               </div>

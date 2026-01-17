@@ -119,10 +119,10 @@ const CommentsSection = ({ movieId }: { movieId: string }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans p-4 md:p-8">
+    <div className="min-h-screen bg-background text-slate-200 font-sans p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
         <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          Community Chat
+          Comments
           <span className="text-sm font-normal text-slate-500 bg-slate-900 px-3 py-1 rounded-full">
             {comments.length}
           </span>

@@ -17,10 +17,11 @@ export class UsersProfileController {
     async getProfileWatchedMovies(
         @Param('userId') userId: number,
         @Query('page') page = 1,
-        @Query('limit') limit = 10,
+        @Query('limit') limit = 20,
         @Req() request: Request,
     )
     {
+        if (limit > 20) limit = 20;
         return this.userProfileService.getUserWatchedMovies
         (
             userId,
@@ -30,14 +31,14 @@ export class UsersProfileController {
     }
 
 
-    @Get(':userId/movies')
+    @Get(':userId/movies/watch-later')
     async getProfileWatchLaterMovies(
         @Param('userId') userId: number,
         @Query('page') page = 1,
-        @Query('limit') limit = 10,
-        @Req() request: Request,
+        @Query('limit') limit = 20,
     )
     {
+        if (limit > 20) limit = 20;
         return this.userProfileService.getUserWatchLaterMovies
         (
             userId,
@@ -46,16 +47,17 @@ export class UsersProfileController {
         )
     }
 
-    @UseGuards(AuthGuard('jwt'))
-    @Patch('comments')
+    // @UseGuards(AuthGuard('jwt'))
+    @Get(':userId/comments')
     async updateSettings(
+        @Param('userId') userId: number,
         @Query('page') page = 1,
-        @Query('limit') limit = 10,
-        @Req() request: Request,
+        @Query('limit') limit = 20,
     )
     {
+        if (limit > 20) limit = 20;
         return this.userProfileService.getUserComments(
-            (request.user as any).id,
+            userId,
             page,
             limit
         )

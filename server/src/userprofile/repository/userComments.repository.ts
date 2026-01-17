@@ -41,7 +41,7 @@ export class UserCommentsRepository {
             .innerJoin(movies, eq(comments.movieId, movies.id))
             .where(
                 eq(comments.userId, userId))
-            .orderBy(desc(comments.createdAt))
+            .orderBy(desc(comments.createdAt), desc(comments.id) )
             .limit(limit)
             .offset(offset);
 

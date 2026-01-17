@@ -24,7 +24,7 @@ export default function SettingsPage() {
     
     return (
 
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+        <div className="min-h-screen bg-background">
             <div className="max-w-6xl mx-auto px-4 py-12">
                 <div className="mb-8">
                     <h1 className="text-4xl font-bold text-white mb-2">Settings</h1>
@@ -63,7 +63,7 @@ export default function SettingsPage() {
                                     key={section.id}
                                     onClick={() => setActiveSection(section.id)}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${activeSection === section.id
-                                        ? 'bg-red-600 text-white'
+                                        ? 'bg-[#E50914]/80 text-white'
                                         : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                                         }`}
                                 >

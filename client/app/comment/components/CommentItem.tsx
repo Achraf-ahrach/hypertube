@@ -25,7 +25,7 @@ export const CommentItem = ({ comment, onLike, onReply, onDelete, onReplyLike }:
   };
 
   return (
-    <div className="bg-slate-900/30 border border-slate-800/40 p-6 rounded-2xl group transition-all hover:border-slate-700/60">
+    <div className="bg-slate-900/30 border border-slate-800/60 p-6 rounded-2xl group transition-all hover:border-slate-700/60">
       <div className="flex gap-4">
         <img src={comment.userAvatar} className="w-10 h-10 rounded-full bg-slate-800" alt={comment.username} />
         <div className="flex-1 min-w-0">
