@@ -82,11 +82,18 @@ export default function Profile({ setSaveSuccess, setError, error }: SettingProp
     const handleSave = async () => {
         setError(null);
 
-        if (formData.username && formData.username.length < 3) {
+        if (!formData.username || (formData.username && formData.username.length < 3)) {
             setError({ message: 'Username must be at least 3 characters', field: 'username' });
             return false;
         }
-
+        if (!formData.firstName || (formData.firstName && formData.firstName.length < 2)) {
+            setError({ message: 'First name must be at least 2 characters', field: 'firstName' });
+            return false;
+        }
+        if (!formData.lastName || (formData.lastName && formData.lastName.length < 2)) {
+            setError({ message: 'Last name must be at least 2 characters', field: 'lastName' });
+            return false;
+        }
         if (originalData !== null && formData.username === originalData.username
             && formData.firstName === originalData.firstName
             && formData.lastName === originalData.lastName
@@ -168,7 +175,7 @@ export default function Profile({ setSaveSuccess, setError, error }: SettingProp
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Profile Information</h2>
+            <h2 className="text-xl font-bold text-white mb-6">Profile Information</h2>
 
             {/* Profile Picture */}
             <div className="flex items-center gap-6">

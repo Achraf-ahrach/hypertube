@@ -14,7 +14,13 @@ import { useParams } from "next/navigation";
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('watched');
-  const [userHeader, setUserHeader] = useState<User>();
+  const [userHeader, setUserHeader] = useState<User>({
+        id: 0,
+        username: '',
+        avatarUrl: '',
+        watchedCount: 0,
+        commentsCount: 0
+      });
   const [watchLaterMovies, setWatchLaterMovies] = useState<Movie[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [watchedMovies, setWatchedMovies] = useState<Movie[]>([]);
@@ -22,19 +28,18 @@ const ProfilePage: React.FC = () => {
   const [currentWatchLaterPage, setCurrentWatchLaterPage] = useState(1);
   const [currentCommentPage, setCurrentCommentPage] = useState(1);
   const [totalWatched, setTotalWatched] = useState(3000);
-  const [totalWatchLater, setTotalWachLater] = useState(1);
+  const [totalWatchLater, setTotalWatchLater] = useState(1);
   const [totalComments, setTotalComments] = useState(1);
   const params = useParams();
   const userId = params.userId;
   const LIMIT = 20;
 
-  // useEffect(
-  //   () => {
-  //     handleFetchUserData();
-  //     handleCurrentWatchedPageChange(1);
-  //   }
-  //   ,
-  //   []);
+  useEffect(
+    () => {
+      handleFetchUserData();
+    }
+    ,
+    []);
 
   useEffect(() => {
     if (activeTab === 'watched') {
@@ -66,7 +71,7 @@ const ProfilePage: React.FC = () => {
       setUserHeader({
         id: res.id,
         username: res.username,
-        avatarUrl: res.avatarUrl,
+        avatarUrl: res.avatarUrl === '' ? null : res.avatarUrl,
         watchedCount: res.watchedCount,
         commentsCount: res.commentsCount
       })
@@ -108,7 +113,7 @@ const ProfilePage: React.FC = () => {
       const res = await fetchUserPages(`/profile/${userId}/movies?page=${pageNum}&limit=${LIMIT}`);
       console.log(res.data);
       setWatchLaterMovies(res.data);
-      setTotalWachLater(res.meta.total);
+      setTotalWatchLater(res.meta.total);
       setCurrentWatchLaterPage(pageNum);
     }
     catch (err) {
@@ -149,7 +154,7 @@ const ProfilePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <aside className="lg:col-span-3">
             <div className="lg:sticky lg:top-24">
-              <ProfileHeader user={mockUser} />
+              <ProfileHeader user={userHeader} />
             </div>
           </aside>
 

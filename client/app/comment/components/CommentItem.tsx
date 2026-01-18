@@ -24,6 +24,7 @@ export const CommentItem = ({ comment, onLike, onReply, onDelete, onReplyLike }:
     setShowReplyInput(false);
   };
 
+  
   return (
     <div className="bg-slate-900/30 border border-slate-800/60 p-6 rounded-2xl group transition-all hover:border-slate-700/60">
       <div className="flex gap-4">

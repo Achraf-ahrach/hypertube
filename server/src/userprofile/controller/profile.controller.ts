@@ -2,16 +2,25 @@
 // src/users/users.controller.ts
 import { Controller, Patch, Body, Req, Query, UseGuards, Get, Param } from '@nestjs/common';
 import type { Request } from 'express';
-import { userProfileService } from '../service/userProfile.service';
+import { UserProfileService } from '../service/userProfile.service';
 import { AuthGuard } from '@nestjs/passport';
 
 
 @Controller('profile')
 export class UsersProfileController {
     constructor(
-        private userProfileService: userProfileService
+        private userProfileService: UserProfileService
     ) { }
 
+ // @UseGuards(AuthGuard('jwt'))
+    @Get(':userId')
+    async getProfileData(
+        @Param('userId') userId: number,
+        @Req() request: Request,
+    )
+    {
+        return this.userProfileService.getProfilePublicInfo(userId);
+    }
     // @UseGuards(AuthGuard('jwt'))
     @Get(':userId/movies')
     async getProfileWatchedMovies(

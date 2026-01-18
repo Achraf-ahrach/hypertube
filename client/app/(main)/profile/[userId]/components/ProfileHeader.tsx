@@ -2,6 +2,7 @@ import { User } from "../types/types";
 
 // ProfileHeader Component
 export const ProfileHeader: React.FC<{ user: User }> = ({ user }) => {
+  if (user.avatarUrl === '') user.avatarUrl = null;
   return (
     <div className="relative overflow-hidden bg-gradient-to-br ">
       {/* Decorative background elements */}
@@ -15,11 +16,20 @@ export const ProfileHeader: React.FC<{ user: User }> = ({ user }) => {
         <div className="flex justify-center mb-6">
           <div className="relative">
             <div className="absolute inset-0 bg-red-600 blur-xl opacity-20"></div>
-            <img
-              src={user.avatarUrl}
-              alt="ww"
-              className="relative w-28 h-28 object-cover border-2 border-red-600/30"
-            />
+            {
+              user.avatarUrl ? (
+                <img
+                  src=  {user.avatarUrl.startsWith('/') ? `http://localhost:3001${user.avatarUrl}` : `${user.avatarUrl}`}
+                  alt="profile"
+                  className="relative w-28 h-28 object-cover border-2 border-red-600/30"
+                />) : (
+                  <img
+                  alt="profile"
+                  className="relative w-28 h-28 object-cover border-2 border-red-600/30"
+                />
+                )
+              
+              }
           </div>
         </div>
 

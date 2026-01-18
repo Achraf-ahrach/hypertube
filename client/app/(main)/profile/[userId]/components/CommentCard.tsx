@@ -24,16 +24,13 @@ export const CommentCard: React.FC<{ comment: Comment }> = ({ comment }) => {
               <h3 className="text-white font-medium text-sm sm:text-base truncate">{comment.movieTitle}</h3>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1">
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: 10 }).map((_, i) => (
+                  
                     <span
-                      key={i}
-                      className={`text-xs ${
-                        i < comment.rating ? 'text-yellow-500' : 'text-zinc-700'
-                      }`}
+                     
                     >
-                      ⭐
+                     {comment.rating } ⭐
                     </span>
-                  ))}
+                 
                 </div>
                 <span className="text-zinc-500 text-xs">{comment.createdAt}</span>
               </div>

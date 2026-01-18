@@ -6,6 +6,7 @@ import {
   X, Loader2, ImageIcon, ChevronDown
 } from 'lucide-react';
 import { CommentItem } from './components/CommentItem';
+import api from '@/lib/axios';
 
 // --- Types ---
 export interface User {
@@ -60,7 +61,7 @@ export const currentUser: User = {
 };
 
 // --- API Service ---
-export const api = {
+export const comment_api = {
   async getComments(movieId: string, limit: number, offset: number) {
     // Simulate API call
     // await new Promise(r => setTimeout(r, 500));
@@ -174,8 +175,18 @@ export const api = {
     };
   },
 
-  async toggleLike(commentId: string, replyId?: string): Promise<void> {
-    await new Promise(r => setTimeout(r, 300));
+  async toggleLike(commentId: string, replyId?: string): Promise<boolean> {
+    // await new Promise(r => setTimeout(r, 300));
+    try
+    {
+      console.log(`/comments/${commentId}/like`);
+      api.post(`/comments/${commentId}/like`);
+      return true;
+    }
+    catch
+    {
+      return false;
+    }
     // await fetch(`/api/comments/${commentId}/like`, { method: 'POST' });
   },
 
@@ -462,7 +473,7 @@ const CommentsSection = ({ movieId }: { movieId: string }) => {
     const loadComments = async () => {
       try
       {
-        const data = await api.getComments(movieId, INITIAL_BATCH, 0);
+        const data = await comment_api.getComments(movieId, INITIAL_BATCH, 0);
         setComments(data);
       }
       catch (error) {
@@ -476,13 +487,13 @@ const CommentsSection = ({ movieId }: { movieId: string }) => {
   }, [movieId]);
 
   const handleAddComment = async (content: string, media?: File) => {
-    const newComment = await api.createComment(movieId, content, media);
+    const newComment = await comment_api.createComment(movieId, content, media);
     setComments(prev => [newComment, ...prev]);
     setVisibleCount(prev => prev + 1);
   };
 
   const handleAddReply = async (commentId: string, content: string) => {
-    const newReply = await api.createReply(commentId, content);
+    const newReply = await comment_api.createReply(commentId, content);
     setComments(prev => prev.map(c =>
       c.id === commentId
         ? { ...c, replies: [...c.replies, newReply], replyCount: c.replyCount + 1 }
@@ -491,7 +502,7 @@ const CommentsSection = ({ movieId }: { movieId: string }) => {
   };
 
   const handleToggleLike = async (commentId: string, replyId?: string) => {
-    await api.toggleLike(commentId, replyId);
+    await comment_api.toggleLike(commentId, replyId);
     setComments(prev => prev.map(c => {
       if (!replyId && c.id === commentId) {
         return { ...c, isLiked: !c.isLiked, likes: c.isLiked ? c.likes - 1 : c.likes + 1 };
@@ -509,7 +520,7 @@ const CommentsSection = ({ movieId }: { movieId: string }) => {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    await api.deleteComment(commentId);
+    await comment_api.deleteComment(commentId);
     setComments(prev => prev.filter(c => c.id !== commentId));
   };
 
