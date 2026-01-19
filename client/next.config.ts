@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'via.placeholder.com',
+        hostname: 'placehold.co',
         pathname: '/**',
       },
       {
@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'yts.lt',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'yts.bz',
         pathname: '/**',
       }
     ],

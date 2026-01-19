@@ -5,28 +5,29 @@ import Link from "next/link";
 import { Star, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Movie } from "@/lib/types/Movie";
-
-// interface Movie {
-//     id: number;
-//     title: string;
-//     year: number;
-//     rating: number;
-//     genre: string;
-//     image: string;
-//     watched?: boolean;
-// }
+import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { setSelectedMovie } from "@/lib/store/uiSlice";
 
 interface MovieCardProps {
     movie: Movie;
 }
 
 export function MovieCard({ movie }: MovieCardProps) {
+    const dispatch = useDispatch();
+    const router = useRouter();
+    
     return (
-        <Link href={`/movie/${movie.imdb_code}`}>
+        <div onClick={() => {
+                    // <Link href={}>
+            dispatch(setSelectedMovie(movie));
+            router.push(`/movie/${movie.imdb_code}`);
+        }}>
             <div className="group relative rounded-xl bg-card text-card-foreground shadow-sm transition-all hover:scale-105 hover:shadow-lg overflow-hidden cursor-pointer">
                 <div className="relative aspect-[2/3] w-full overflow-hidden">
                     <Image
-                        src={movie.thumbnail || "https://via.placeholder.com/600x400"}
+                        src={movie.thumbnail || "https://placehold.co/600x400"}
 
                         alt={movie.title}
                         fill
@@ -36,13 +37,6 @@ export function MovieCard({ movie }: MovieCardProps) {
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <Eye className="w-12 h-12 text-white/80" />
                     </div>
-
-                    {/* Watched Badge (if applicable - reusing design concept) */}
-                    {/* {movie.watched && (
-                    <div className="absolute top-2 right-2 bg-black/70 rounded-full p-1">
-                        <Eye className="w-4 h-4 text-primary" />
-                    </div>
-                )} */}
                 </div>
 
                 <div className="p-3 space-y-1">
@@ -60,6 +54,6 @@ export function MovieCard({ movie }: MovieCardProps) {
                     </div>
                 </div>
             </div>
-        </Link>
+        </div>
     );
 }

@@ -6,322 +6,518 @@ import { Injectable, Inject } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import * as cacheManager_1 from 'cache-manager';
 
-/**
- * Do some caching ?
- * The responses are cached in for 2 hours. The feeds are cached for 24 hours.
+// ===== TYPES =====
+export interface NormalizedMovie {
+  source: 'YTS' | 'APIBay' | 'TMDb';
+  imdb_code: string;
+  tmdb_id?: number;
+  title: string;
+  year: number;
+  rating: number;
+  thumbnail: string | null;
+  synopsis: string;
+  runtime: number;
+  mpa_rating: string;
+  genres: string | string[];
+  background_image: string | null;
+  backdrop_image?: string | null;
+  torrents?: Torrent[];
+}
 
- */
+export interface Torrent {
+  url: string;
+  hash: string;
+  quality: string;
+  seeds: number;
+  peers: number;
+  size: number;
+}
 
-/**
- * Can i fetch data from client -- no CORS ?
- * Data Normalization using DTO maybe => return  
- */
+interface TMDbMetadata {
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  movieTitle: string;
+  movieYear: number;
+  voteAverage: number;
+  plot: string;
+  runtime: number;
+  rated: string;
+  genres: string[];
+  tmdbId: number;
+  imdbId: string;
+}
 
+interface TMDbFindResponse {
+  movie_results: any[];
+}
 
-/**
- * The only required piece for a magnet link is the info_hash
- * magnet:?xt=urn:btih:<INFO_HASH>&dn=<NAME>
- * <NAME> is optional
- */
+interface TMDbMovieDetails {
+  id: number;
+  imdb_id: string;
+  title: string;
+  release_date: string;
+  vote_average: number;
+  overview: string;
+  runtime: number;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  genres: Array<{ id: number; name: string }>;
+  release_dates?: {
+    results: Array<{
+      iso_3166_1: string;
+      release_dates: Array<{ certification: string }>;
+    }>;
+  };
+}
 
-/**
- 
-{
+// ===== CONSTANTS =====
+const CACHE_KEYS = {
+  ALL_MOVIES: 'all_movies',
+  TMDB_MOVIE: (id: string) => `tmdb_movie_${id}`,
+  SEARCH_MOVIES: (query: string) => `search_movies_${query.toLowerCase().trim()}`,
+  MOVIE: (id: string) => `movie_${id}`,
+} as const;
 
-"Title":"Zootopia 2",
-"Year":"2025",
-"Rated":"PG",
-"Released":"26 Nov 2025",
-"Runtime":"108 min",
-"Genre":"Animation, Action, Adventure",
-"Director":"Jared Bush, Byron Howard",
-"Writer":"Jared Bush",
-"Actors":"Ginnifer Goodwin, Jason Bateman, Ke Huy Quan",
-"Plot":"Brave rabbit cop Judy Hopps and her friend, the fox Nick Wilde, team up again to crack a new case, the most perilous and intricate of their careers.",
-"Language":"English",
-"Country":"United States",
-"Awards":"1 win & 2 nominations total",
-"Poster":"https://m.media-amazon.com/images/M/MV5BYjg1Mjc3MjQtMTZjNy00YWVlLWFhMWEtMWI3ZTgxYjJmNmRlXkEyXkFqcGc@._V1_SX300.jpg","Ratings":
-[
-{"Source":"Internet Movie Database","Value":"7.8/10"},
-{"Source":"Rotten Tomatoes","Value":"92%"},
-{"Source":"Metacritic","Value":"73/100"}
-],
-"Metascore":"73",
-"imdbRating":"7.8",
-"imdbVotes":"8,485",
-"imdbID":"tt26443597",
-"Type":"movie",
-"DVD":"N/A",
-"BoxOffice":"$97,700,000",
-"Production":"N/A",
-"Website":"N/A",
-"Response":"True"}
+const API_URLS = {
+  YTS_SEARCH: 'https://yts.lt/api/v2/list_movies.json',
+  YTS_TRENDING: 'https://yts.lt/api/v2/list_movies.json?sort_by=download_count&limit=50',
+  APIBAY_SEARCH: 'https://apibay.org/q.php',
+  APIBAY_TRENDING: 'https://apibay.org/precompiled/data_top100_207.json',
+  TMDB_BASE: 'https://api.themoviedb.org/3',
+  TMDB_IMAGE_BASE: 'https://image.tmdb.org/t/p',
+} as const;
 
- */
+const TMDB_IMAGE_SIZES = {
+  POSTER_LARGE: 'w780',      // High-res poster
+  POSTER_ORIGINAL: 'original', // Original quality
+  BACKDROP_LARGE: 'w1280',   // High-res backdrop
+  BACKDROP_ORIGINAL: 'original',
+} as const;
 
-/*
-Production Setup (Redis)
-In-memory caching is not suitable for clustered apps (data isn't shared between instances) or large datasets. You should switch to Redis.
-*/
+const LIMITS = {
+  APIBAY_SEARCH_RESULTS: 20,
+  CACHE_TTL: 3600, // 1 hour in seconds
+} as const;
 
 @Injectable()
 export class MoviesService {
-  // Common mirrors: yts.mx, yts.lt, yts.ag if YTS domains change
-  // https://yts.lt/api/v2/list_movies.json
-  // private readonly ytsDomain = 'yts.lt';
-  // private readonly ytsApiUrl = `https://${this.ytsDomain}/api/v2/list_movies.json`;
-
   private readonly logger = new Logger(MoviesService.name);
+  private readonly tmdbApiKey: string | undefined;
 
-  constructor(private readonly httpService: HttpService, private readonly configService: ConfigService, @Inject(CACHE_MANAGER) private readonly cacheManager: cacheManager_1.Cache) { }
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: cacheManager_1.Cache
+  ) {
+    const key = this.configService.get<string>('TMDB_API_KEY');
+    this.tmdbApiKey = key?.trim();
 
-
-  async searchMoviesYTS(query: string) {
-    const url = `https://yts.lt/api/v2/list_movies.json?query_term=${query}`;
-    const response = await lastValueFrom(this.httpService.get(url).pipe(map((res) => res.data)));
-    return response.data.movies;
+    if (!this.tmdbApiKey) {
+      this.logger.error('TMDB_API_KEY not configured');
+    } else {
+      this.logger.log(`TMDB_API_KEY configured: '${this.tmdbApiKey.substring(0, 4)}...' (length: ${this.tmdbApiKey.length})`);
+    }
   }
 
-  async searchMoviesApiBay(query: string) {
-    // https://apibay.org/q.php?q={query}&cat={category_code}
-    const url = `https://apibay.org/q.php?q=${query}&cat=207`;
-    const response = await lastValueFrom(this.httpService.get(url).pipe(map((res) => res.data)));
-    return response.data;
+  // ===== PUBLIC API =====
+
+  async searchMovies(query: string): Promise<NormalizedMovie[]> {
+    const cacheKey = CACHE_KEYS.SEARCH_MOVIES(query);
+    const cached = await this.cacheManager.get<NormalizedMovie[]>(cacheKey);
+
+    if (cached) {
+      this.logger.debug(`Returning cached search results for: ${query}`);
+      return cached;
+    }
+
+    const [ytsResults, apiBayResults] = await Promise.allSettled([
+      this.searchYTS(query),
+      this.searchAPIBay(query),
+    ]);
+
+    const results = [
+      ...(ytsResults.status === 'fulfilled' ? ytsResults.value : []),
+      ...(apiBayResults.status === 'fulfilled' ? apiBayResults.value : []),
+    ];
+
+    if (results.length > 0) {
+      // Cache search results list
+      await this.cacheManager.set(cacheKey, results, LIMITS.CACHE_TTL);
+
+      // Cache individual movies so getMovie can find them (and their torrents)
+      await Promise.all(
+        results.map(movie =>
+          this.cacheManager.set(CACHE_KEYS.MOVIE(movie.imdb_code), movie, LIMITS.CACHE_TTL)
+        )
+      );
+    }
+
+    return results;
   }
 
-
-  async getTrendingMovies(page: number, limit: number) {
+  async getTrendingMovies(page: number, limit: number): Promise<NormalizedMovie[]> {
     const start = (page - 1) * limit;
-    const heavyData = await this.getAndCacheHeavyData();
-    return heavyData.slice(start, start + limit);
+    const allMovies = await this.getAndCacheAllMovies();
+    return allMovies.slice(start, start + limit);
   }
 
-  async getAndCacheHeavyData() {
-    const heavyData: any = await this.cacheManager.get('all_movies');
-    if (heavyData) {
-      return heavyData
+  async getMovie(id: string): Promise<NormalizedMovie | null> {
+    // Try cache first
+    const cachedMovies = await this.getAndCacheAllMovies();
+    const cachedMovie = cachedMovies.find((m) => m?.imdb_code === id);
+
+    if (cachedMovie) {
+      return cachedMovie;
     }
-    const ytsData = await this.getYtsTrending();
-    const apiBayData = await this.getApiBayTrending();
-    const allMovies = [...ytsData, ...apiBayData];
-    await this.cacheManager.set('all_movies', allMovies);
-    return allMovies;
+
+    // Try individual movie cache (populated by search)
+    const specificCacheKey = CACHE_KEYS.MOVIE(id);
+    const specificCachedMovie = await this.cacheManager.get<NormalizedMovie>(specificCacheKey);
+
+    if (specificCachedMovie) {
+      this.logger.debug(`Returning cached movie data for ${id}`);
+      return specificCachedMovie;
+    }
+
+    // Fallback to TMDb
+    this.logger.log(`Movie ${id} not found in cache, fetching from TMDb`);
+    const tmdbData = await this.fetchFromTMDb(id);
+
+    if (!tmdbData) {
+      return null;
+    }
+
+    return this.normalizeTMDbMovie(tmdbData);
   }
 
-  // 1. YTS Source (High Quality Movie Torrents)
-  async getYtsTrending() {
-    const url = 'https://yts.lt/api/v2/list_movies.json?sort_by=download_count&limit=50';
+  // ===== SEARCH METHODS =====
+
+  private async searchYTS(query: string): Promise<NormalizedMovie[]> {
+    const url = `${API_URLS.YTS_SEARCH}?query_term=${encodeURIComponent(query)}`;
 
     try {
-      const topMovies = await lastValueFrom(
-        this.httpService.get(url).pipe(map((res) => res.data))
+      const response = await this.fetchData<any>(url);
+
+      if (!response?.data?.movies) {
+        return [];
+      }
+
+      const enrichedMovies = await Promise.allSettled(
+        response.data.movies.map((movie: any) => this.enrichYTSMovie(movie))
       );
 
-      // Skip omdbapi requests as YTS already has the data
-
-      return topMovies.data.movies.map((movie: any) => ({
-        source: 'YTS',
-        imdb_code: movie.imdb_code,
-        title: movie.title,
-        year: movie.year,
-        rating: movie.rating || 0,
-        thumbnail: movie.large_cover_image,
-        synopsis: movie.synopsis,
-        runtime: movie.runtime,
-        mpa_rating: movie.mpa_rating,
-        genres: movie.genres,
-        background_image: movie.background_image,
-        torrents: movie.torrents,
-      }));
-    } catch (e) {
-      this.logger.error(e);
-      this.logger.error('YTS failed, switching to APIBay...');
-    }
-  }
-
-  async getMovie(id: string) {
-    const heavyData: any[] = await this.getAndCacheHeavyData();
-    const movie = heavyData.find(m => m.imdb_code === id);
-    if (movie) return movie;
-
-    // If not found in cache, try fetching directly from YTS (if it's a YTS movie)
-    // Or just validte with OMDb? 
-    // For now, let's keep it simple and just rely on the cache or maybe fetch details if needed.
-    // Ideally we would fetch single movie details here.
-    return null;
-  }
-
-  async getApiBayTrending() {
-    const url = 'https://apibay.org/precompiled/data_top100_207.json';
-    const omdbApiKey = this.configService.get('OMDB_API_KEY');
-
-    try {
-      const topMovies = await lastValueFrom(
-        this.httpService.get(url).pipe(map((res) => res.data))
-      );
-
-
-      const enrichedMovies = await Promise.all(
-        topMovies.map(async (res: any) => {
-          let movie = {
-            posterUrl: null,
-            movieTitle: res.name,
-            movieYear: null,
-            imdbRating: 0,
-            plot: '',
-            runtime: 0,
-            rated: '',
-            genres: '',
-          }
-          if (res.imdb && res.imdb.startsWith('tt')) {
-            try {
-              const metadataUrl = `http://www.omdbapi.com/?apikey=${omdbApiKey}&i=${res.imdb}`;
-              const metadata = await lastValueFrom(
-                this.httpService.get(metadataUrl).pipe(map((res) => res.data))
-              );
-
-              if (metadata.Response === 'True') {
-                movie.posterUrl = metadata.Poster !== 'N/A' ? metadata.Poster : null;
-                movie.movieTitle = metadata.Title; // Use the "clean" title from OMDb
-                movie.movieYear = metadata.Year;
-                movie.imdbRating = Number.parseFloat(metadata.imdbRating);
-                movie.plot = metadata.Plot;
-                movie.runtime = parseInt(metadata.Runtime) || 0;
-                movie.rated = metadata.Rated;
-                movie.genres = metadata.Genre;
-              }
-            } catch (e) {
-              this.logger.error(`Failed to fetch metadata for ${res.imdb}`);
-              this.logger.error(e);
-            }
-          }
-
-          // Return the clean, enriched object
-          return {
-            source: 'APIBay',
-            imdb_code: res.imdb, // Important for the frontend router
-            title: movie.movieTitle,     // Clean title (e.g. "Zootopia 2")
-            year: movie.movieYear,       // Required by subject
-            rating: movie.imdbRating,
-            thumbnail: movie.posterUrl,  // THUMBNAIL
-            synopsis: movie.plot,
-            runtime: movie.runtime,
-            mpa_rating: movie.rated,
-            genres: movie.genres ? movie.genres.split(', ') : [],
-            background_image: movie.posterUrl, // Fallback as APIBay doesn't provide backgrounds
-            torrents: [            // Structure for the video player later
-              {
-                url: `magnet:?xt=urn:btih:${res.info_hash}&dn=${encodeURIComponent(res.name)}`,
-                hash: res.info_hash,
-                quality: '1080p', // Heuristic based on raw name or APIBay category
-                seeds: parseInt(res.seeders),
-                peers: parseInt(res.leechers),
-                size: parseInt(res.size),
-              }
-            ]
-          };
-        })
-      );
-
-      return enrichedMovies;
-
+      return enrichedMovies
+        .filter((result): result is PromiseFulfilledResult<NormalizedMovie> =>
+          result.status === 'fulfilled'
+        )
+        .map((result) => result.value);
     } catch (error) {
-      this.logger.error('APIBay fetch failed');
+      this.logger.error(`YTS search failed for query: ${query}`, error.stack);
       return [];
     }
   }
 
-  // 2. APIBay Source (The Pirate Bay - Top 100 Movies)
-  // async getApiBayTrending() {
-  //   // Category 200 = Video, 201 = Movies, 207 = HD Movies
-  //   // This endpoint returns the Top 100 movies sorted by popularity (seeds)
-  //   const url = 'https://apibay.org/precompiled/data_top100_207.json';
+  private async enrichYTSMovie(movie: any): Promise<NormalizedMovie> {
+    const normalizedYTS = this.normalizeYTSMovie(movie);
 
-  //   try {
-  //     const data = await lastValueFrom(
-  //       this.httpService.get(url).pipe(map((res) => res.data))
-  //     );
+    // Attempt to enrich with TMDb data
+    const tmdbMetadata = await this.fetchFromTMDb(normalizedYTS.imdb_code);
 
+    if (tmdbMetadata) {
+      // Merge TMDb metadata but keep YTS torrents and source identifier (or maybe update source to indicate dual origin if needed, but 'YTS' is fine for now as it indicates the torrent source)
+      return {
+        ...normalizedYTS,
+        tmdb_id: tmdbMetadata.tmdbId,
+        title: tmdbMetadata.movieTitle,
+        year: tmdbMetadata.movieYear,
+        rating: tmdbMetadata.voteAverage,
+        thumbnail: tmdbMetadata.posterUrl || normalizedYTS.thumbnail,
+        synopsis: tmdbMetadata.plot || normalizedYTS.synopsis,
+        runtime: tmdbMetadata.runtime || normalizedYTS.runtime,
+        mpa_rating: tmdbMetadata.rated || normalizedYTS.mpa_rating,
+        genres: tmdbMetadata.genres.length > 0 ? tmdbMetadata.genres : normalizedYTS.genres,
+        background_image: tmdbMetadata.posterUrl || normalizedYTS.background_image,
+        backdrop_image: tmdbMetadata.backdropUrl || normalizedYTS.backdrop_image,
+        // Ensure torrents are preserved
+        torrents: normalizedYTS.torrents,
+      };
+    }
 
-  //     /**
-  //        {
-  //         "id": 81589954,
-  //         "info_hash": "D745D479E6CD56D5F7DDB2F35970EF7FE1311788",
-  //         "category": 207,
-  //         "name": "Zootopia 2 2025 1080p Multi READNFO HEVC x265-RMTeam",
-  //         "status": "vip",
-  //         "num_files": 1,
-  //         "size": 1815772220,
-  //         "seeders": 5449,
-  //         "leechers": 7353,
-  //         "username": ".BONE.",
-  //         "added": 1766677100,
-  //         "anon": 0,
-  //         "imdb": "tt26443597"
-  //       },
+    // Fallback if TMDb fails
+    return normalizedYTS;
+  }
 
-  //       {
-  //         "id": Identifiant unique for the torrent 
-  //         "info_hash": Hash of the torrent, unique fingerprint of the torrent
-  //         "category": Category of the torrent
-  //         "name": Name of the torrent
-  //         "status": Status of the torrent
-  //         "num_files": Number of files in the torrent
-  //         "size": Size of the torrent
-  //         "seeders": Number of seeders for the torrent
-  //         "leechers": Number of leechers for the torrent
-  //         "username": Username of the user who uploaded the torrent
-  //         "added": Time when the torrent was added
-  //         "anon": Anonimity level of the torrent
-  //         "imdb": IMDB ID of the movie
+  private async searchAPIBay(query: string): Promise<NormalizedMovie[]> {
+    const url = `${API_URLS.APIBAY_SEARCH}?q=${encodeURIComponent(query)}&cat=207`;
 
-  //       }
+    try {
+      const response = await this.fetchData<any[]>(url);
 
-  //      */
+      if (!Array.isArray(response) || response.length === 0) {
+        return [];
+      }
 
-  //     // CAN YOU SET a limit for apiBay ?
-  //     return data
-  //       .map((movie: any) => ({
-  //         source: 'APIBay',
-  //         hash: movie.info_hash,
-  //         catagory: parseInt(movie.category),
-  //         title: movie.name,
-  //         status: movie.status,
-  //         numFiles: parseInt(movie.num_files),
-  //         size: parseInt(movie.size),
-  //         seeders: parseInt(movie.seeders),
-  //         leechers: parseInt(movie.leechers),
-  //         username: movie.username,
-  //         added: movie.added,
-  //         anon: movie.anon,
-  //         imdb: movie.imdb,
-  //         // magnet: `magnet:?xt=urn:btih:${movie.info_hash}&dn=${encodeURIComponent(movie.name)}`,
-  //         // cover: null
-  //       }))
-  //     // .slice(0, 10).map((movie: any) => ({
-  //     //   source: 'APIBay',
-  //     //   title: movie.name,
-  //     //   seeds: parseInt(movie.seeders),
-  //     //   leechers: parseInt(movie.leechers),
-  //     //   // APIBay does not give a magnet link directly, you must build it:
-  //     //   magnet: `magnet:?xt=urn:btih:${movie.info_hash}&dn=${encodeURIComponent(movie.name)}`,
-  //     //   hash: movie.info_hash,
-  //     //   cover: null // APIBay does not provide images
-  //     // }));
-  //   } catch (error) {
-  //     this.logger.error('APIBay also failed');
-  //     return [];
-  //   }
-  // }
+      const enrichedMovies = await Promise.allSettled(
+        response
+          .slice(0, LIMITS.APIBAY_SEARCH_RESULTS)
+          .map((movie: any) => this.enrichAPIBayMovie(movie))
+      );
 
+      return enrichedMovies
+        .filter((result): result is PromiseFulfilledResult<NormalizedMovie> =>
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map((result) => result.value);
+    } catch (error) {
+      this.logger.error(`APIBay search failed for query: ${query}`, error.stack);
+      return [];
+    }
+  }
 
+  // ===== TRENDING METHODS =====
 
-  // Search by query 
+  private async getAndCacheAllMovies(): Promise<NormalizedMovie[]> {
+    const cached = await this.cacheManager.get<NormalizedMovie[]>(CACHE_KEYS.ALL_MOVIES);
+
+    if (cached) {
+      this.logger.debug('Returning cached movies');
+      return cached;
+    }
+
+    this.logger.log('Cache miss - fetching trending movies');
+    const [ytsData, apiBayData] = await Promise.allSettled([
+      this.getYtsTrending(),
+      this.getApiBayTrending(),
+    ]);
+
+    const allMovies = [
+      ...(ytsData.status === 'fulfilled' ? ytsData.value : []),
+      ...(apiBayData.status === 'fulfilled' ? apiBayData.value : []),
+    ];
+
+    await this.cacheManager.set(CACHE_KEYS.ALL_MOVIES, allMovies, LIMITS.CACHE_TTL);
+    return allMovies;
+  }
+
+  private async getYtsTrending(): Promise<NormalizedMovie[]> {
+    try {
+      const response = await this.fetchData<any>(API_URLS.YTS_TRENDING);
+
+      if (!response?.data?.movies) {
+        return [];
+      }
+
+      return response.data.movies.map((movie: any) => this.normalizeYTSMovie(movie));
+    } catch (error) {
+      this.logger.error('YTS trending fetch failed', error.stack);
+      return [];
+    }
+  }
+
+  private async getApiBayTrending(): Promise<NormalizedMovie[]> {
+    try {
+      const topMovies = await this.fetchData<any[]>(API_URLS.APIBAY_TRENDING);
+
+      if (!Array.isArray(topMovies)) {
+        return [];
+      }
+
+      const enrichedMovies = await Promise.allSettled(
+        topMovies.map((movie: any) => this.enrichAPIBayMovie(movie))
+      );
+
+      return enrichedMovies
+        .filter((result): result is PromiseFulfilledResult<NormalizedMovie> =>
+          result.status === 'fulfilled' && result.value !== null
+        )
+        .map((result) => result.value);
+    } catch (error) {
+      this.logger.error('APIBay trending fetch failed', error.stack);
+      return [];
+    }
+  }
+
+  // ===== NORMALIZATION METHODS =====
+
+  private normalizeYTSMovie(movie: any): NormalizedMovie {
+    return {
+      source: 'YTS',
+      imdb_code: movie.imdb_code,
+      title: movie.title,
+      year: movie.year,
+      rating: movie.rating || 0,
+      thumbnail: movie.large_cover_image,
+      synopsis: movie.synopsis || '',
+      runtime: movie.runtime || 0,
+      mpa_rating: movie.mpa_rating || 'Not Rated',
+      genres: movie.genres || [],
+      background_image: movie.background_image,
+      torrents: movie.torrents.map((torrent: any) => ({
+        url: "magnet:?xt=urn:btih:" + torrent.hash + "&dn=" + encodeURIComponent(movie.title),
+        hash: torrent.hash,
+        quality: torrent.quality,
+        size: torrent.size,
+        peers: torrent.peers,
+        seeds: torrent.seeds,
+      })) || [],
+    };
+  }
+
+  private normalizeTMDbMovie(metadata: TMDbMetadata): NormalizedMovie {
+    return {
+      source: 'TMDb',
+      imdb_code: metadata.imdbId,
+      tmdb_id: metadata.tmdbId,
+      title: metadata.movieTitle,
+      year: metadata.movieYear,
+      rating: metadata.voteAverage,
+      thumbnail: metadata.posterUrl,
+      synopsis: metadata.plot,
+      runtime: metadata.runtime,
+      mpa_rating: metadata.rated,
+      genres: metadata.genres,
+      background_image: metadata.posterUrl,
+      backdrop_image: metadata.backdropUrl,
+      torrents: [],
+    };
+  }
+
+  // ===== TMDB API METHODS =====
+
+  private async fetchFromTMDb(imdbCode: string): Promise<TMDbMetadata | null> {
+    if (!imdbCode || !imdbCode.startsWith('tt')) {
+      this.logger.warn(`Invalid IMDB code: ${imdbCode}`);
+      return null;
+    }
+
+    if (!this.tmdbApiKey) {
+      this.logger.error('TMDB_API_KEY not configured');
+      return null;
+    }
+
+    try {
+      // Check cache first
+      const cacheKey = CACHE_KEYS.TMDB_MOVIE(imdbCode);
+      const cached = await this.cacheManager.get<TMDbMetadata>(cacheKey);
+      if (cached) {
+        this.logger.debug(`Returning cached TMDb data for ${imdbCode}`);
+        return cached;
+      }
+
+      // Step 1: Find the movie by IMDB ID to get TMDb ID
+      const findUrl = `${API_URLS.TMDB_BASE}/find/${imdbCode}?api_key=${this.tmdbApiKey}&external_source=imdb_id`;
+      console.log({ findUrl });
+      const findResponse = await this.fetchData<TMDbFindResponse>(findUrl);
+
+      if (!findResponse?.movie_results || findResponse.movie_results.length === 0) {
+        this.logger.warn(`TMDb returned no results for ${imdbCode}`);
+        return null;
+      }
+
+      const tmdbId = findResponse.movie_results[0].id;
+
+      // Step 2: Get detailed movie information including certification
+      const detailsUrl = `${API_URLS.TMDB_BASE}/movie/${tmdbId}?api_key=${this.tmdbApiKey}&append_to_response=release_dates`;
+      const movieDetails = await this.fetchData<TMDbMovieDetails>(detailsUrl);
+
+      if (!movieDetails) {
+        this.logger.warn(`Failed to fetch details for TMDb ID ${tmdbId}`);
+        return null;
+      }
+
+      // Extract US certification (MPAA rating)
+      let certification = 'Not Rated';
+      if (movieDetails.release_dates?.results) {
+        const usRelease = movieDetails.release_dates.results.find(
+          (r) => r.iso_3166_1 === 'US'
+        );
+        if (usRelease?.release_dates?.[0]?.certification) {
+          certification = usRelease.release_dates[0].certification;
+        }
+      }
+
+      const metadata: TMDbMetadata = {
+        posterUrl: movieDetails.poster_path
+          ? `${API_URLS.TMDB_IMAGE_BASE}/${TMDB_IMAGE_SIZES.POSTER_ORIGINAL}${movieDetails.poster_path}`
+          : null,
+        backdropUrl: movieDetails.backdrop_path
+          ? `${API_URLS.TMDB_IMAGE_BASE}/${TMDB_IMAGE_SIZES.BACKDROP_ORIGINAL}${movieDetails.backdrop_path}`
+          : null,
+        movieTitle: movieDetails.title || '',
+        movieYear: movieDetails.release_date
+          ? parseInt(movieDetails.release_date.split('-')[0])
+          : 0,
+        voteAverage: movieDetails.vote_average || 0,
+        plot: movieDetails.overview || '',
+        runtime: movieDetails.runtime || 0,
+        rated: certification,
+        genres: movieDetails.genres?.map((g) => g.name) || [],
+        tmdbId: movieDetails.id,
+        imdbId: movieDetails.imdb_id || imdbCode,
+      };
+
+      // Cache the result
+      await this.cacheManager.set(cacheKey, metadata, LIMITS.CACHE_TTL);
+
+      return metadata;
+    } catch (error) {
+      this.logger.error(`Failed to fetch TMDb metadata for ${imdbCode}`, error.stack);
+      return null;
+    }
+  }
+
+  private async enrichAPIBayMovie(res: any): Promise<NormalizedMovie | null> {
+    const metadata = await this.fetchFromTMDb(res.imdb);
+
+    if (!metadata) {
+      return null;
+    }
+
+    return {
+      source: 'APIBay',
+      imdb_code: res.imdb,
+      tmdb_id: metadata.tmdbId,
+      title: metadata.movieTitle,
+      year: metadata.movieYear,
+      rating: metadata.voteAverage,
+      thumbnail: metadata.posterUrl,
+      synopsis: metadata.plot,
+      runtime: metadata.runtime,
+      mpa_rating: metadata.rated,
+      genres: metadata.genres,
+      background_image: metadata.posterUrl,
+      backdrop_image: metadata.backdropUrl,
+      torrents: [
+        {
+          url: `magnet:?xt=urn:btih:${res.info_hash}&dn=${encodeURIComponent(res.name)}`,
+          hash: res.info_hash,
+          quality: '1080p',
+          seeds: parseInt(res.seeders) || 0,
+          peers: parseInt(res.leechers) || 0,
+          size: parseInt(res.size) || 0,
+        },
+      ],
+    };
+  }
+
+  // ===== UTILITY METHODS =====
+
+  private async fetchData<T>(url: string): Promise<T> {
+    return lastValueFrom(
+      this.httpService.get<T>(url).pipe(map((res) => res.data))
+    );
+  }
+
   /**
-   * Search by query 
-   * for apibay https://apibay.org/q.php?q={query}&cat={category_code} 
-   * for YTS  https://yts.lt/api/v2/list_movies.json?query_term={query}
+   * Helper method to get TMDb image URL with specific size
+   * Useful if you want to get different quality images on demand
    */
+  getTMDbImageUrl(path: string, type: 'poster' | 'backdrop', size?: string): string {
+    const baseUrl = API_URLS.TMDB_IMAGE_BASE;
+    const defaultSize = type === 'poster'
+      ? TMDB_IMAGE_SIZES.POSTER_ORIGINAL
+      : TMDB_IMAGE_SIZES.BACKDROP_ORIGINAL;
 
+    return `${baseUrl}/${size || defaultSize}${path}`;
+  }
 }

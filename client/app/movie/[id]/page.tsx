@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Plus, ThumbsUp, Share2, Flag } from "lucide-react";
@@ -10,18 +11,24 @@ import api from "@/lib/axios";
 import Navbar from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Movie } from "@/lib/types/Movie";
+import { useSelector } from "react-redux";
 
 export default function MovieDetailsPage() {
+
+    const [showNoMagnetPopup, setShowNoMagnetPopup] = useState(false);
+    const router = useRouter();
     const { id } = useParams();
 
-    const { data: movie, isLoading } = useQuery<Movie>({
+    const { data: movieQ, isLoading } = useQuery<Movie>({
         queryKey: ["movie", id],
         queryFn: async () => {
             const { data } = await api.get(`/movies/${id}`);
             return data;
         },
-        enabled: !!id,
+        enabled: !!id
     });
+
+    const movie = useSelector((state: any) => state.ui.selectedMovie) || movieQ;
 
     if (isLoading) {
         return (
@@ -41,6 +48,23 @@ export default function MovieDetailsPage() {
             </div>
         );
     }
+
+    const handlePlay = () => {
+        console.log(movie);
+        if (!movie?.torrents || movie?.torrents.length === 0) {
+            console.log("No magnets found");
+            setShowNoMagnetPopup(true);
+        } else {
+            console.log("Playing...");
+            console.log(movie.torrents);
+            // TODO: Navigate to player or open player modal
+            router.push(`/movie/${id}/stream`);
+        }
+    };
+
+    const handleSearch = () => {
+        router.push(`/search?q=${encodeURIComponent(movie.title)}`);
+    };
 
     return (
         <div className="min-h-screen bg-[#141414] text-white font-sans">
@@ -65,6 +89,7 @@ export default function MovieDetailsPage() {
                 {/* Play Button (Centered) */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <button
+                        onClick={handlePlay}
                         className="w-20 h-20 rounded-full bg-primary/90 hover:bg-primary text-white flex items-center justify-center transition-transform hover:scale-110 shadow-[0_0_40px_rgba(var(--primary),0.5)] pointer-events-auto backdrop-blur-sm"
                         aria-label="Play"
                     >
@@ -154,7 +179,7 @@ export default function MovieDetailsPage() {
                         <div>
                             <h3 className="text-sm text-gray-400 font-medium mb-1">Rating Summary</h3>
                             <div className="flex items-end gap-3">
-                                <span className="text-5xl font-bold text-white">{movie.rating}</span>
+                                <span className="text-5xl font-bold text-white">{movie.rating.toFixed(1)}</span>
                                 <span className="text-lg text-gray-500 mb-1">/ 10</span>
                             </div>
                             <div className="flex gap-1 mt-2 text-yellow-500">
@@ -182,6 +207,35 @@ export default function MovieDetailsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* No Magnet Popup */}
+            {showNoMagnetPopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-8 max-w-md w-full shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+                        <div className="space-y-2 text-center">
+                            <h3 className="text-2xl font-bold text-white">No Stream Available</h3>
+                            <p className="text-gray-400">
+                                We couldn't find a magnet link for this movie. Try searching for it to find a version with seeders.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="flex-1 bg-transparent border-white/20 hover:bg-white/5 hover:text-white"
+                                onClick={() => setShowNoMagnetPopup(false)}
+                            >
+                                Close
+                            </Button>
+                            <Button
+                                className="flex-1 bg-primary hover:bg-primary/90 text-white"
+                                onClick={handleSearch}
+                            >
+                                Search for seeders
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

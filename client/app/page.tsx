@@ -18,15 +18,15 @@ export default function Home() {
   const router = useRouter();
   // const [movies, setMovies] = useState(MOCK_MOVIES);
 
-  const { 
-    data: movies, 
+  const {
+    data: movies,
     isLoading: moviesLoading,
     hasNextPage,
     fetchNextPage,
     isFetching,
     isFetchingNextPage,
     refetch
-   } = useMoviesLibrary();
+  } = useMoviesLibrary();
 
   // Filter States
   const [hideWatched, setHideWatched] = useState(false);
@@ -84,7 +84,9 @@ export default function Home() {
                   className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
                 >
                   {movies?.pages.map((page, i) => page?.map((movie, j) => (
-                    <MovieCard key={movie.imdb_code || `${i}-${j}`} movie={movie} />
+                    movie && (
+                      <MovieCard key={movie.imdb_code || `${i}-${j}`} movie={movie} />
+                    )
                   )))}
                   {isFetchingNextPage && (
                     <div className="flex justify-center items-center">
