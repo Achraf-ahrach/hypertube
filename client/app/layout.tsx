@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import QueryProvider from "@/components/providers/QueryProvider";
+import ReduxProviders from "@/lib/store/ReduxProviders";
 import { UserProvider } from "@/lib/contexts/UserContext";
 import Navbar from "@/components/layout/Navbar";
 
@@ -42,7 +43,9 @@ export default function RootLayout({
               storageKey="theme"
               disableTransitionOnChange
             >
-              {children}
+              <ReduxProviders>
+                {children}
+              </ReduxProviders>
             </ThemeProvider>
           </UserProvider>
         </QueryProvider>
