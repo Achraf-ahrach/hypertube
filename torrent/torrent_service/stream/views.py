@@ -373,22 +373,6 @@ class VideoViewSet(viewsets.ViewSet):
             logger.error(f"Streaming error: {str(e)}")
             return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=["get"], url_path="file-status")
-    def file_status(self, request, pk=None):
-        """Get movie file status including download progress"""
-        try:
-            movie_file = MovieFile.objects.get(id=pk)
-            return Response(
-                {
-                    "magnet_link": movie_file.magnet_link,
-                    "download_status": movie_file.download_status,
-                    "download_progress": movie_file.download_progress,
-                    "file_path": movie_file.file_path if movie_file.download_status == "READY" else None,
-                }
-            )
-        except MovieFile.DoesNotExist:
-            return Response({"download_status": "NOT_FOUND", "download_progress": 0, "file_path": None})
-
     @action(detail=True, methods=["get"], url_path="segments")
     def segments(self, request, pk=None):
         """Get segment information for the movie"""
