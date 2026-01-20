@@ -5,7 +5,7 @@
 import { Movie, User , Comment} from "../types/types";
 
 export const mockUser: User = {
-  id: '1',
+  id: 1,
   username: '@cinephile_alex',
   // displayName: 'Alex Rodriguez',
   avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop',

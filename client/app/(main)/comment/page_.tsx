@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { CommentItem } from './components/CommentItem';
 import api from '@/lib/axios';
-import { API_URL } from '../utils';
+import { API_URL } from '@/app/utils';
 
 // --- Types ---
 export interface User {
