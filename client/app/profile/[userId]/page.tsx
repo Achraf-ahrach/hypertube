@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { Movie, PaginatedResponse, TabType, User } from './types/types';
 import { ProfileHeader } from './components/ProfileHeader';
-import { mockComments, mockUser, mockWatchedMovies, mockWatchLaterMovies } from './mockdata/data';
 import { Tabs } from './components/Tabs';
 import { MovieGrid } from './components/MovieGrid';
 import { CommentsSection } from './components/CommentsSection';
