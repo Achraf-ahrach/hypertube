@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { comments, users, commentMedia, movies } from '../../database/schema';
 import { DRIZZLE } from 'src/database/database.module';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { MoviesService, NormalizedMovie } from 'src/movies/movies.service';
 
 interface CreateCommentDto {
   movieId: string;
@@ -18,6 +19,7 @@ export class CreateCommentsService {
 
       constructor(
         @Inject(DRIZZLE) private readonly db: ReturnType<typeof drizzle>,
+        private readonly moviesService: MoviesService,
       ) {}
   async createComment(dto: CreateCommentDto) {
     const { movieId, userId, content, parentId, mediaFile } = dto;
@@ -30,7 +32,20 @@ export class CreateCommentsService {
       .limit(1);
 
     if (movie.length === 0) {
-      throw new NotFoundException('Movie not found');
+      const new_movie : NormalizedMovie | null = await this.moviesService.getMovie(movieId);
+      if (!new_movie) {
+        throw new NotFoundException('Movie not found');
+      }
+      else {
+        await this.db.insert(movies).values({
+          id: new_movie.imdb_code,
+          title: new_movie.title,
+          productionYear: new_movie.year,
+          // imdbRating: new_movie.rating,
+          coverImageUrl: new_movie.thumbnail,
+        });
+      }
+
     }
 
     // Get user info

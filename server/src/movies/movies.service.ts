@@ -186,6 +186,7 @@ export class MoviesService {
     if (!tmdbData) {
       return null;
     }
+    this.logger.log(`Successfully fetched movie ${id} from TMDb`);
 
     return this.normalizeTMDbMovie(tmdbData);
   }
@@ -386,6 +387,7 @@ export class MoviesService {
 
   private async fetchFromTMDb(imdbCode: string): Promise<TMDbMetadata | null> {
     if (!imdbCode || !imdbCode.startsWith('tt')) {
+      this.logger.warn(`${imdbCode}`)
       this.logger.warn(`Invalid IMDB code: ${imdbCode}`);
       return null;
     }

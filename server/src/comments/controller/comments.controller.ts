@@ -38,18 +38,18 @@ export class CommentsController {
     return this.commentService.getCommentsByMovie({ movieId, limit, page: offset,currentUserId: req.user.id});
   }
 
-  @UseGuards(AuthGuard('jwt'))
-  @Post(':movieId')
-   async createComment(
-      @Param('movieId') movieId: string,
-      @Body('content') content: string,
-      @Req() req: any,
-    ) {
+  // @UseGuards(AuthGuard('jwt'))
+  // @Post(':movieId')
+  //  async createComment(
+  //     @Param('movieId') movieId: string,
+  //     @Body('content') content: string,
+  //     @Req() req: any,
+  //   ) {
       
-      console.log(req.user.id);
-      console.log("DSDS");
-      return "true;"
-    }
+  //     console.log(req.user.id);
+  //     console.log("DSDS");
+  //     return "true;"
+  //   }
 
   @UseGuards(AuthGuard('jwt'))
   @Post(':commentId/like')

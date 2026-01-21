@@ -104,7 +104,7 @@ export const comment_api = {
   ): Promise<Comment> {
     // await new Promise(r => setTimeout(r, 800));
 
-    const endpoint = `${API_URL}/comments/2`;
+    const endpoint = `${API_URL}/comments/${movieId}`;
     const formData = new FormData();
     formData.append("content", content);
     console.log(content);
@@ -112,6 +112,7 @@ export const comment_api = {
     const response = await fetch(endpoint, {
       method: "POST",
       body: formData,
+      credentials: "include",
     });
     return await response.json();
   },
@@ -123,6 +124,8 @@ export const comment_api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
+      credentials: "include",
+      
     });
     return response.json();
 
