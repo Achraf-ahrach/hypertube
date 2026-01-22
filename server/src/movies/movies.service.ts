@@ -522,4 +522,12 @@ export class MoviesService {
 
     return `${baseUrl}/${size || defaultSize}${path}`;
   }
+
+
+
+  async addMovieToWatchLater(userId: number, movieId: string): Promise<{ message: string }> {
+   
+    
+    return { message: `Movie ${movieId} added to user ${userId}'s watch-later list` };
+  }
 }
