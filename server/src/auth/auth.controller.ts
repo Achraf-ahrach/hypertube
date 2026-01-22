@@ -34,6 +34,8 @@ export class AuthController {
             id: { type: 'number', example: 1 },
             email: { type: 'string', example: 'user@example.com' },
             username: { type: 'string', example: 'johndoe' },
+            firstName: { type: 'string', example: 'John' },
+            lastName: { type: 'string', example: 'Doe' },
             avatarUrl: { type: 'string', nullable: true, example: null },
             provider: { type: 'string', example: 'local' },
           },
@@ -160,7 +162,6 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   @Get('profile')
   getProfile(@Request() req) {
-    console.log('\n\nprofile API Authenticated user:', req.user);
     return req.user;
   }
 

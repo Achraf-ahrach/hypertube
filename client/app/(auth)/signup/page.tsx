@@ -22,6 +22,8 @@ function SignUpForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -54,7 +56,7 @@ function SignUpForm() {
 
     setIsLoading(true);
     try {
-      await api.post("/auth/register", { email, username, password });
+      await api.post("/auth/register", { email, username, firstName, lastName, password });
       router.push("/");
     } catch (err: any) {
       console.error("Registration error:", err.response?.data);
@@ -87,7 +89,7 @@ function SignUpForm() {
 
   useEffect(() => {
     setError("");
-  }, [email, username, password, confirmPassword]);
+  }, [email, username, firstName, lastName, password, confirmPassword]);
 
   return (
     <div
@@ -147,6 +149,45 @@ function SignUpForm() {
                   disabled={isLoading}
                   className="h-13 bg-card border-border/60 pl-10 group-hover:border-border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary"
                 />
+              </div>
+            </div>
+
+            {/* First Name and Last Name Fields - Side by Side */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2.5">
+                <Label htmlFor="firstName" className="text-primary">
+                  First Name
+                </Label>
+                <div className="relative group">
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="John"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="h-13 bg-card border-border/60 group-hover:border-border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                <Label htmlFor="lastName" className="text-primary">
+                  Last Name
+                </Label>
+                <div className="relative group">
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Doe"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="h-13 bg-card border-border/60 group-hover:border-border transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:border-primary"
+                  />
+                </div>
               </div>
             </div>
 

@@ -45,6 +45,8 @@ export class UsersService {
   async createUser(userData: {
     email: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     passwordHash: string;
     avatarUrl?: string;
     provider?: string;
@@ -56,8 +58,8 @@ export class UsersService {
       .values({
         email: userData.email,
         username: userData.username,
-        firstName: '',
-        lastName: '',
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
         passwordHash: userData.passwordHash,
         avatarUrl: userData.avatarUrl || null,
         provider: userData.provider || 'local',
@@ -75,6 +77,8 @@ export class UsersService {
     providerId: string;
     email: string;
     username: string;
+    firstName?: string;
+    lastName?: string;
     avatarUrl?: string;
   }) {
     const now = new Date().toISOString();
@@ -84,8 +88,8 @@ export class UsersService {
       .values({
         email: oauthData.email,
         username: oauthData.username,
-        firstName: '',
-        lastName: '',
+        firstName: oauthData.firstName || '',
+        lastName: oauthData.lastName || '',
         passwordHash: '', // No password for OAuth users
         avatarUrl: oauthData.avatarUrl || null,
         provider: oauthData.provider,

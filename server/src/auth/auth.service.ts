@@ -82,6 +82,8 @@ export class AuthService {
   async register(userData: {
     email: string;
     username: string;
+    firstName: string;
+    lastName: string;
     password: string;
   }) {
     const existingUser = await this.usersService.findByEmail(userData.email);
@@ -92,6 +94,8 @@ export class AuthService {
     const newUser = await this.usersService.createUser({
       email: userData.email,
       username: userData.username,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
       passwordHash: hashedPassword,
       provider: 'local',
     });
