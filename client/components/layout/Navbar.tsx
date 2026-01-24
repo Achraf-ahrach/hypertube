@@ -82,11 +82,6 @@ export default function Navbar() {
 
         {/* Right Actions */}
         <div className="ml-auto flex items-center space-x-4">
-          {/* Language Toggle (Simplification) */}
-          {/* <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            EN
-          </Button> */}
-
           <ModeToggle />
 
           {/* Profile Dropdown */}
@@ -118,7 +113,7 @@ export default function Navbar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/profile/${user?.id}`)}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>

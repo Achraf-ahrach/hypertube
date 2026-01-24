@@ -41,9 +41,7 @@ export default function RootLayout({
               storageKey="theme"
               disableTransitionOnChange
             >
-              <ReduxProviders>
-                {children}
-              </ReduxProviders>
+              <ReduxProviders>{children}</ReduxProviders>
             </ThemeProvider>
           </UserProvider>
         </QueryProvider>

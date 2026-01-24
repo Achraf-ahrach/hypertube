@@ -14,13 +14,19 @@ services:
       - "${POSTGRES_PORT}:5432"
     networks:
       - hypertube_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./server
     container_name: hypertube_backend
-    command: npm run start:dev
+    command: sh -c "npm run db:migrate && npm run start:dev"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - ./.env
     environment:
