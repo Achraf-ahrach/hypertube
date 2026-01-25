@@ -74,3 +74,6 @@ server/torrents/
 uploads/
 
 /torrent/torrent_service/downloads
+/torrent/torrent_service/media
+/torrent/torrent_service/static
+/__pycache__/

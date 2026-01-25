@@ -84,7 +84,7 @@ services:
       - ./torrent/torrent_service:/app
       - static_volume:/app/static
       - media_volume:/app/media
-    # restart: always
+    restart: always
 
   frontend_torrent:
     build: ./torrent/frontend_torrent/
@@ -108,7 +108,7 @@ services:
     depends_on:
       - torrent
       - frontend_torrent
-    # restart: always
+    restart: always
     networks:
       - hypertube_network
 

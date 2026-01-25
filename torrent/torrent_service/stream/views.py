@@ -10,12 +10,14 @@ import threading
 import libtorrent as lt
 import logging
 import time
+from django.shortcuts import get_object_or_404
 from .models import MovieFile
 from rest_framework.pagination import PageNumberPagination
 from .services import SubtitleService
 from .utils import get_trackers, make_magnet_link
 from django.conf import settings
 from django.http import Http404, HttpResponse
+from urllib.parse import quote
 range_re = re.compile(r"bytes\s*=\s*(\d+)\s*-\s*(\d*)", re.I)
 
 logger = logging.getLogger(__name__)
@@ -87,7 +89,7 @@ def process_video_thread(video_id):
         movie_file.save()
 
         # Create standardized movie directory
-        downloads_dir = "/app/downloads"
+        downloads_dir = "/app/media"
         movie_dir = os.path.join(downloads_dir, "movies", str(movie_file.id))
         os.makedirs(movie_dir, exist_ok=True)
         logging.info(f"Using movie directory: {movie_dir}")
@@ -169,7 +171,7 @@ def process_video_thread(video_id):
                                         base_name = os.path.splitext(os.path.basename(rel_path))[0]
                                         
                                         # Create segment path preserving directory structure
-                                        first_segment = f"{base_name}_segment_000.mp4"
+                                        first_segment = f"{base_name}_segment_000.ts"
                                         if dir_path:
                                             first_segment = os.path.join(dir_path, first_segment)
                                         
@@ -236,6 +238,91 @@ class VideoViewSet(viewsets.ViewSet):
     GET /video/:id/stream - Stream movie content
     """
 
+    @action(detail=True, methods=['get'])
+    def playlist(self, request, pk=None):
+        movie = get_object_or_404(MovieFile, pk=pk)
+        if not movie.file_path:
+            # Metadata hasn't been fetched yet.
+            # Return 404 so the player keeps retrying or shows "Loading"
+            return HttpResponse("Movie metadata not ready", status=404)
+        # 1. Path Setup
+        absolute_file_path = os.path.join(settings.MEDIA_ROOT, movie.file_path)
+        output_dir = os.path.dirname(absolute_file_path)
+        base_name = os.path.splitext(os.path.basename(movie.file_path))[0]
+        
+        if base_name.endswith("_segment_000"):
+            base_name = base_name.replace("_segment_000", "")
+
+        # 2. Find Segments
+        segments = []
+        i = 0
+        while True:
+            # Check for both .ts and .mp4 just in case, but prioritize .ts
+            seg_name = f"{base_name}_segment_{i:03d}.ts"
+            if os.path.exists(os.path.join(output_dir, seg_name)):
+                segments.append(seg_name)
+                i += 1
+            else:
+                break
+
+        # 3. Determine Playlist Type
+        # If status is READY, use 'VOD' (Video on Demand) to fix seeking/duration
+        is_finished = movie.download_status == 'READY'
+        playlist_type = "VOD" if is_finished else "EVENT"
+
+        m3u8_content = [
+            "#EXTM3U",
+            "#EXT-X-VERSION:3",
+            "#EXT-X-TARGETDURATION:10",
+            "#EXT-X-MEDIA-SEQUENCE:0",
+            f"#EXT-X-PLAYLIST-TYPE:{playlist_type}", 
+        ]
+        
+        # Hint for players to start at 0 (ignored by some players in EVENT mode)
+        if not is_finished:
+            m3u8_content.append("#EXT-X-START:TIME-OFFSET=0,PRECISE=YES")
+
+        # 4. Add Segments
+        for seg in segments:
+            m3u8_content.append(f"#EXTINF:10.0,")
+            m3u8_content.append(f"/api/video/{pk}/stream_ts/?file={seg}")
+
+        # 5. Close the list if finished
+        if is_finished:
+            m3u8_content.append("#EXT-X-ENDLIST")
+            
+        return HttpResponse("\n".join(m3u8_content), content_type="application/vnd.apple.mpegurl")
+    
+    @action(detail=True, methods=['get'])
+    def stream_ts(self, request, pk=None):
+        """
+        Helper to serve the specific .ts file via Nginx.
+        """
+        file_name = request.query_params.get('file')
+        movie = get_object_or_404(MovieFile, pk=pk)
+
+        # 1. Get the directory relative to MEDIA_ROOT (e.g. "movies/3/MyMovie")
+        relative_dir = os.path.dirname(movie.file_path)
+
+        # 2. Construct ABSOLUTE path for Python to check existence
+        # (e.g. "/app/media/movies/3/MyMovie/segment_000.ts")
+        absolute_path = os.path.join(settings.MEDIA_ROOT, relative_dir, file_name)
+
+        if not os.path.exists(absolute_path):
+            # Print debug to logs so you can see why it fails
+            print(f"DEBUG: File not found: {absolute_path}")
+            return HttpResponse(status=404)
+        if relative_dir.startswith('/'):
+            relative_dir = relative_dir[1:]
+        # 3. Construct URI for Nginx
+        # Nginx needs: /media/movies/3/MyMovie/segment_000.ts
+        # We use urlquote() to safely handle spaces and brackets [ ]
+        nginx_path = os.path.join('/media', relative_dir, file_name)
+        
+        response = HttpResponse()
+        response['X-Accel-Redirect'] = quote(nginx_path)
+        response['Content-Type'] = 'video/MP2T'
+        return response
 
     @action(detail=True, methods=["post"], url_path="start")
     def start_stream(self, request, pk=None):
@@ -323,123 +410,139 @@ class VideoViewSet(viewsets.ViewSet):
         except MovieFile.DoesNotExist:
             return Response({"error": "Movie not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=True, methods=["get"], url_path="stream")
-    def stream(self, request, pk=None):
-        """Stream movie content"""
-        try:
-            movie_file = MovieFile.objects.get(id=pk)
+    # @action(detail=True, methods=["get"], url_path="stream")
+    # def stream(self, request, pk=None):
+    #     """Stream movie content"""
+    #     try:
+    #         movie_file = MovieFile.objects.get(id=pk)
 
-            if movie_file.download_status not in ["READY", "PLAYABLE"]:
-                return Response(
-                    {"error": f"Movie is not ready for streaming (status: {movie_file.download_status})"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+    #         if movie_file.download_status not in ["READY", "PLAYABLE"]:
+    #             return Response(
+    #                 {"error": f"Movie is not ready for streaming (status: {movie_file.download_status})"},
+    #                 status=status.HTTP_400_BAD_REQUEST,
+    #             )
 
-            # Get segment parameter (default to 0 for first segment)
-            segment = int(request.query_params.get("segment", 0))
+    #         # Get segment parameter (default to 0 for first segment)
+    #         segment = int(request.query_params.get("segment", 0))
             
-            # Get the full path structure from the stored file path
-            file_path = os.path.join("/app/downloads", movie_file.file_path)
+    #         # Get the full path structure from the stored file path
+    #         file_path = os.path.join("/app/downloads", movie_file.file_path)
             
-            if segment != 0:  # For segments other than 0, we need to construct the segment path
-                dir_path = os.path.dirname(file_path)
-                base_name = os.path.splitext(os.path.basename(file_path))[0]
+    #         if segment != 0:  # For segments other than 0, we need to construct the segment path
+    #             dir_path = os.path.dirname(file_path)
+    #             base_name = os.path.splitext(os.path.basename(file_path))[0]
                 
-                if base_name.endswith("_segment_000"):
-                    base_name = base_name[:-12]
+    #             if base_name.endswith("_segment_000"):
+    #                 base_name = base_name[:-12]
                 
-                segment_filename = f"{base_name}_segment_{segment:03d}.mp4"
-                file_path = os.path.join(dir_path, segment_filename)
+    #             segment_filename = f"{base_name}_segment_{segment:03d}.mp4"
+    #             file_path = os.path.join(dir_path, segment_filename)
             
-            if not os.path.exists(file_path):
-                return Response({"error": f"Segment {segment} not found"}, status=status.HTTP_404_NOT_FOUND)
+    #         if not os.path.exists(file_path):
+    #             return Response({"error": f"Segment {segment} not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            video_service = VideoService()
+    #         video_service = VideoService()
 
-            range_header = request.META.get("HTTP_RANGE", "").strip()
-            start_time = float(request.query_params.get("start", 0))
+    #         range_header = request.META.get("HTTP_RANGE", "").strip()
+    #         start_time = float(request.query_params.get("start", 0))
 
-            response = video_service.stream_video(
-                file_path=file_path,
-                range_header=range_header,
-                start_time=start_time
-            )
+    #         response = video_service.stream_video(
+    #             file_path=file_path,
+    #             range_header=range_header,
+    #             start_time=start_time
+    #         )
 
-            return response
+    #         return response
 
-        except MovieFile.DoesNotExist:
-            return Response({"error": "Movie not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Streaming error: {str(e)}")
-            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #     except MovieFile.DoesNotExist:
+    #         return Response({"error": "Movie not found"}, status=status.HTTP_404_NOT_FOUND)
+    #     except Exception as e:
+    #         logger.error(f"Streaming error: {str(e)}")
+    #         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    # @action(detail=True, methods=["get"], url_path="file-status")
+    # def file_status(self, request, pk=None):
+    #     """Get movie file status including download progress"""
+    #     try:
+    #         movie_file = MovieFile.objects.get(id=pk)
+    #         return Response(
+    #             {
+    #                 "magnet_link": movie_file.magnet_link,
+    #                 "download_status": movie_file.download_status,
+    #                 "download_progress": movie_file.download_progress,
+    #                 "file_path": movie_file.file_path if movie_file.download_status == "READY" else None,
+    #             }
+    #         )
+    #     except MovieFile.DoesNotExist:
+    #         return Response({"download_status": "NOT_FOUND", "download_progress": 0, "file_path": None})
 
-    @action(detail=True, methods=["get"], url_path="segments")
-    def segments(self, request, pk=None):
-        """Get segment information for the movie"""
-        try:
-            movie_file = MovieFile.objects.get(id=pk)
+    # @action(detail=True, methods=["get"], url_path="segments")
+    # def segments(self, request, pk=None):
+    #     """Get segment information for the movie"""
+    #     try:
+    #         movie_file = MovieFile.objects.get(id=pk)
             
-            if movie_file.download_status not in ["READY", "PLAYABLE"]:
-                return Response(
-                    {"error": f"Movie is not ready (status: {movie_file.download_status})"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+    #         if movie_file.download_status not in ["READY", "PLAYABLE"]:
+    #             return Response(
+    #                 {"error": f"Movie is not ready (status: {movie_file.download_status})"},
+    #                 status=status.HTTP_400_BAD_REQUEST,
+    #             )
             
-            # Get the full path from the stored file path
-            file_path = os.path.join("/app/downloads", movie_file.file_path)
-            dir_path = os.path.dirname(file_path)
-            base_name = os.path.splitext(os.path.basename(file_path))[0]
+    #         # Get the full path from the stored file path
+    #         file_path = os.path.join("/app/downloads", movie_file.file_path)
+    #         dir_path = os.path.dirname(file_path)
+    #         base_name = os.path.splitext(os.path.basename(file_path))[0]
             
-            # Remove _segment_000 suffix if it exists
-            if base_name.endswith("_segment_000"):
-                base_name = base_name[:-12]
+    #         # Remove _segment_000 suffix if it exists
+    #         if base_name.endswith("_segment_000"):
+    #             base_name = base_name[:-12]
             
-            # Get total movie duration from original file
-            original_file_path = None
-            for ext in ['.mkv', '.mp4', '.avi']:
-                test_path = os.path.join(dir_path, f"{base_name}{ext}")
-                if os.path.exists(test_path):
-                    original_file_path = test_path
-                    break
+    #         # Get total movie duration from original file
+    #         original_file_path = None
+    #         for ext in ['.mkv', '.mp4', '.avi']:
+    #             test_path = os.path.join(dir_path, f"{base_name}{ext}")
+    #             if os.path.exists(test_path):
+    #                 original_file_path = test_path
+    #                 break
             
-            total_duration = None
-            if original_file_path:
-                video_service = VideoService()
-                total_duration = video_service.get_video_duration(original_file_path)
+    #         total_duration = None
+    #         if original_file_path:
+    #             video_service = VideoService()
+    #             total_duration = video_service.get_video_duration(original_file_path)
             
-            # Find all available segments
-            available_segments = []
-            segment_num = 0
+    #         # Find all available segments
+    #         available_segments = []
+    #         segment_num = 0
             
-            while True:
-                segment_filename = f"{base_name}_segment_{segment_num:03d}.mp4"
-                segment_path = os.path.join(dir_path, segment_filename)
+    #         while True:
+    #             segment_filename = f"{base_name}_segment_{segment_num:03d}.mp4"
+    #             segment_path = os.path.join(dir_path, segment_filename)
                 
-                if os.path.exists(segment_path):
-                    available_segments.append({
-                        "segment": segment_num,
-                        "filename": segment_filename,
-                        "size": os.path.getsize(segment_path)
-                    })
-                    segment_num += 1
-                else:
-                    break
+    #             if os.path.exists(segment_path):
+    #                 available_segments.append({
+    #                     "segment": segment_num,
+    #                     "filename": segment_filename,
+    #                     "size": os.path.getsize(segment_path)
+    #                 })
+    #                 segment_num += 1
+    #             else:
+    #                 break
             
-            video_service = VideoService()
-            segment_duration = video_service.segment_duration
+    #         video_service = VideoService()
+    #         segment_duration = video_service.segment_duration
             
-            return Response({
-                "available_segments": available_segments,
-                "segment_duration": segment_duration,
-                "total_segments": len(available_segments),
-                "total_duration": total_duration
-            })
+    #         return Response({
+    #             "available_segments": available_segments,
+    #             "segment_duration": segment_duration,
+    #             "total_segments": len(available_segments),
+    #             "total_duration": total_duration
+    #         })
             
-        except MovieFile.DoesNotExist:
-            return Response({"error": "Movie not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Segments info error: {str(e)}")
-            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #     except MovieFile.DoesNotExist:
+    #         return Response({"error": "Movie not found"}, status=status.HTTP_404_NOT_FOUND)
+    #     except Exception as e:
+    #         logger.error(f"Segments info error: {str(e)}")
+    #         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++
 # subtitle view
