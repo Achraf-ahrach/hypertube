@@ -20,7 +20,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ movieId }) => {
 
     // 1. Fetch Subtitles
     useEffect(() => {
-        api.get(`/subtitles/?movie_id=${movieId}&language=en`)
+        api.get(`/subtitles/?movie_id=${movieId}&language=fr`)
            .then(res => setSubtitles(res.data))
            .catch(err => console.error("Subtitle load failed", err));
     }, [movieId]);
@@ -35,26 +35,49 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ movieId }) => {
         if (Hls.isSupported()) {
             const hls = new Hls({
                 debug: false,
-                // FIX: Force start from 0
                 startPosition: 0,
-                // FIX: Don't jump to live edge
                 liveSyncDurationCount: 0, 
-                // Optional: Increase buffer for smoother start
+                
+                // === RETRY LOGIC (Wait for Backend) ===
+                manifestLoadingTimeOut: 10000,    // Wait 10s before timing out a request
+                manifestLoadingRetryDelay: 2000,  // Wait 2s before retrying after a 404
+                manifestLoadingMaxRetry: 60,      // Retry 60 times (approx 2 mins of waiting)
+                
+                // Optional: Also retry loading individual segments if they are slow to generate
+                fragLoadingRetryDelay: 1000,
+                fragLoadingMaxRetry: 60,
             });
+            
             hls.loadSource(hlsUrl);
             hls.attachMedia(video);
             
             hls.on(Hls.Events.ERROR, (_, data) => {
+                // Only destroy if it's a fatal error AND we have exhausted our retries
                 if (data.fatal) {
-                    setError("Playback Error: " + data.type);
-                    hls.destroy();
+                    console.error("HLS Fatal Error:", data);
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            // Try to recover network errors (though maxRetry usually handles this)
+                            console.log("fatal network error encountered, trying to recover");
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.log("fatal media error encountered, trying to recover");
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            // Cannot recover, stop playback
+                            setError("Playback Error: " + data.type);
+                            hls.destroy();
+                            break;
+                    }
                 }
             });
 
             return () => hls.destroy();
         } 
         else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native support (Safari)
+            // Native support (Safari) - Safari does not allow detailed retry config easily
             video.src = hlsUrl;
         } 
         else {
@@ -80,7 +103,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ movieId }) => {
                         srcLang={sub.language}
                         // Ensure path is relative to Nginx root (/media/)
                         src={sub.file_path.startsWith('http') ? sub.file_path : `/media/${sub.file_path}`}
-                        default={sub.language === 'en'}
+                        default={sub.language === 'fr'}
                     />
                 ))}
             </video>
